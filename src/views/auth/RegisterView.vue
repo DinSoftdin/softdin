@@ -528,7 +528,7 @@ async function handleSubmit(): Promise<void> {
 
     <template #footer>
       ¿Ya tiene cuenta?
-      <RouterLink to="/login" class="link">Iniciar sesión</RouterLink>
+      <RouterLink :to="{ name: 'login' }" class="link">Iniciar sesión</RouterLink>
     </template>
   </AuthShell>
 </template>

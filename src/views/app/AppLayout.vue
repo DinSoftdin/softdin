@@ -4,9 +4,8 @@ import { computed, onMounted, ref, watch } from 'vue'
 
 import { RouterView } from 'vue-router'
 
-import AppHeader from '@/components/layout/AppHeader.vue'
-
-import AppSidebar from '@/components/layout/AppSidebar.vue'
+import AppHeader from '@/views/app/AppHeader.vue'
+import AppSidebar from '@/views/app/AppSidebar.vue'
 
 
 

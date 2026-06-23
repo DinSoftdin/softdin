@@ -185,10 +185,10 @@ const selectedTenantLogoUrl = computed(() => {
         </div>
 
         <div class="flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
-          <RouterLink to="/recuperar-contrasena" class="auth-link">
+          <RouterLink :to="{ name: 'forgot-password' }" class="auth-link">
             ¿Olvidó su contraseña?
           </RouterLink>
-          <RouterLink to="/registro" class="auth-link">
+          <RouterLink :to="{ name: 'register' }" class="auth-link">
             Crear usuario nuevo
           </RouterLink>
         </div>

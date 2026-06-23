@@ -7,9 +7,9 @@ const router = useRouter()
 
 const maestrosModule = computed(() => menuModules.find((module) => module.id === 'maestros'))
 
-function goTo(route?: string): void {
-  if (route) {
-    router.push(route)
+function goTo(routeName?: string): void {
+  if (routeName) {
+    router.push({ name: routeName })
   }
 }
 </script>
@@ -35,10 +35,10 @@ function goTo(route?: string): void {
           {{ item.ready ? 'Disponible' : 'En construcción' }}
         </p>
         <button
-          v-if="item.route"
+          v-if="item.routeName"
           type="button"
           class="mt-4 text-sm font-medium text-brand-600 hover:text-brand-700"
-          @click="goTo(item.route)"
+          @click="goTo(item.routeName)"
         >
           {{ item.ready ? 'Abrir' : 'Vista previa' }}
         </button>

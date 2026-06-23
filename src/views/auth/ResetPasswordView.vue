@@ -108,9 +108,9 @@ async function handleSubmit(): Promise<void> {
     </form>
 
     <template #footer>
-      <RouterLink to="/recuperar-contrasena" class="link">Solicitar nuevo enlace</RouterLink>
+      <RouterLink :to="{ name: 'forgot-password' }" class="link">Solicitar nuevo enlace</RouterLink>
       ·
-      <RouterLink to="/login" class="link">Iniciar sesión</RouterLink>
+      <RouterLink :to="{ name: 'login' }" class="link">Iniciar sesión</RouterLink>
     </template>
   </AuthShell>
 </template>

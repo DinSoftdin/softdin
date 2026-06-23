@@ -82,7 +82,7 @@ async function handleSubmit(): Promise<void> {
     </form>
 
     <template #footer>
-      <RouterLink to="/login" class="link">Volver al inicio de sesión</RouterLink>
+      <RouterLink :to="{ name: 'login' }" class="link">Volver al inicio de sesión</RouterLink>
     </template>
   </AuthShell>
 </template>

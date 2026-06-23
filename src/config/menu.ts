@@ -1,6 +1,7 @@
 export interface MenuItem {
   label: string
   route?: string
+  routeName?: string
   ready?: boolean
   adminOnly?: boolean
 }
@@ -20,9 +21,9 @@ export const menuModules: MenuModule[] = [
     label: 'Maestros',
     icon: 'M',
     children: [
-      { label: 'Cargos', route: '/maestros/cargos', ready: false },
-      { label: 'Países', route: '/maestros/paises', ready: false },
-      { label: 'Terceros', route: '/maestros/terceros', ready: false },
+      { label: 'Cargos', route: '/maestros/cargos', routeName: 'maestros-cargos', ready: false },
+      { label: 'Países', route: '/maestros/paises', routeName: 'maestros-paises', ready: false },
+      { label: 'Terceros', route: '/maestros/terceros', routeName: 'maestros-terceros', ready: false },
     ],
   },
   {
@@ -30,8 +31,8 @@ export const menuModules: MenuModule[] = [
     label: 'Nómina',
     icon: 'N',
     children: [
-      { label: 'Empleados', route: '/nomina/empleados', ready: false },
-      { label: 'Liquidaciones', route: '/nomina/liquidaciones', ready: false },
+      { label: 'Empleados', route: '/nomina/empleados', routeName: 'nomina-empleados', ready: false },
+      { label: 'Liquidaciones', route: '/nomina/liquidaciones', routeName: 'nomina-liquidaciones', ready: false },
     ],
   },
   {
@@ -39,7 +40,7 @@ export const menuModules: MenuModule[] = [
     label: 'Hojas de vida',
     icon: 'H',
     children: [
-      { label: 'Consulta', route: '/hov/consulta', ready: false },
+      { label: 'Consulta', route: '/hov/consulta', routeName: 'hov-consulta', ready: false },
     ],
   },
   {
@@ -47,7 +48,7 @@ export const menuModules: MenuModule[] = [
     label: 'Otros',
     icon: 'O',
     children: [
-      { label: 'Reportes', route: '/otros/reportes', ready: false },
+      { label: 'Reportes', route: '/otros/reportes', routeName: 'otros-reportes', ready: false },
     ],
   },
   {
@@ -56,7 +57,12 @@ export const menuModules: MenuModule[] = [
     icon: 'A',
     adminOnly: true,
     children: [
-      { label: 'Clientes (Tenants)', route: '/admin/tenants', ready: false },
+      {
+        label: 'Clientes (Tenants)',
+        route: '/admin/tenants',
+        routeName: 'admin-tenants',
+        ready: false,
+      },
     ],
   },
 ]

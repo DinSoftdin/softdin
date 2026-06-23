@@ -36,8 +36,8 @@ function isDatosMaestrosActive(): boolean {
   return route.path === '/datos-maestros' || route.path.startsWith('/maestros/')
 }
 
-function navigate(path: string): void {
-  router.push(path)
+function navigateTo(routeName: string): void {
+  router.push({ name: routeName })
   emit('navigate')
 }
 
@@ -149,7 +149,7 @@ async function handleTenantChange(event: Event): Promise<void> {
           isCompact ? 'nav-item-collapsed' : '',
         ]"
         title="Inicio"
-        @click="navigate('/')"
+        @click="navigateTo('home')"
       >
         <span class="nav-icon">⌂</span>
         <span v-if="!isCompact" class="nav-label">Inicio</span>
@@ -163,7 +163,7 @@ async function handleTenantChange(event: Event): Promise<void> {
           isCompact ? 'nav-item-collapsed' : '',
         ]"
         title="Datos Maestros"
-        @click="navigate('/datos-maestros')"
+        @click="navigateTo('datos-maestros')"
       >
         <span class="nav-icon">M</span>
         <span v-if="!isCompact" class="nav-label">Datos Maestros</span>
