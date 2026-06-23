@@ -1,0 +1,38 @@
+import { createApp } from 'vue'
+import { createPinia } from 'pinia'
+import App from '@/App.vue'
+import router from '@/router'
+import { setupApiInterceptors } from '@/services/api'
+import { useAuthStore } from '@/stores/auth.store'
+import '@/style.css'
+
+const app = createApp(App)
+const pinia = createPinia()
+
+app.use(pinia)
+
+setupApiInterceptors(
+  () => useAuthStore().token,
+  () => useAuthStore().activeTenant?.slug ?? null,
+  () => {
+    const auth = useAuthStore()
+    auth.clearSession()
+    router.push({ name: 'login' })
+  },
+  () => {
+    const auth = useAuthStore()
+    auth.clearSession()
+    router.push({
+      name: 'login',
+      query: { reason: 'tenant-token-mismatch' },
+    })
+  },
+)
+
+app.use(router)
+app.mount('#app')
+
+const auth = useAuthStore()
+if (auth.isAuthenticated) {
+  void auth.loadAvatar()
+}
