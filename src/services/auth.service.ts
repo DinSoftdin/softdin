@@ -34,7 +34,6 @@ export const authService = {
 
       const { data } = await api.post<RegisterResponse>('/auth/register', formData, {
         timeout: 180_000,
-        headers: { 'Content-Type': 'multipart/form-data' },
       })
       return data
     }

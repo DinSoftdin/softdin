@@ -138,14 +138,23 @@ const selectedTenantLogoUrl = computed(() => {
   <div class="login-bg flex min-h-full items-center justify-center px-4 py-10">
     <div class="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl">
       <div class="mb-8 flex flex-col items-center text-center">
+        <RouterLink
+          v-if="step === 1"
+          :to="{ name: 'login-central' }"
+          class="brand-link mb-3"
+          title="Ir a SoftDIN Central"
+        >
+          <AuthBrandHeader />
+        </RouterLink>
         <AuthBrandHeader
+          v-else
           class="mb-3"
-          :tenant-name="step === 2 ? selectedTenant?.name : undefined"
-          :tenant-slug="step === 2 ? selectedTenant?.slug : undefined"
-          :tenant-has-logo="step === 2 ? selectedTenant?.has_logo : false"
+          :tenant-name="selectedTenant?.name"
+          :tenant-slug="selectedTenant?.slug"
+          :tenant-has-logo="selectedTenant?.has_logo"
         />
         <p v-if="step === 1" class="text-sm text-slate-500">
-          Acceso operacional · clientes (tenants)
+          Acceso Clientes (tenants)
         </p>
         <p v-else-if="selectedTenant" class="text-sm text-slate-500">
           Ingresar a {{ selectedTenant.name }}
@@ -192,12 +201,6 @@ const selectedTenantLogoUrl = computed(() => {
             Crear usuario nuevo
           </RouterLink>
         </div>
-
-        <p class="text-center text-sm">
-          <RouterLink :to="{ name: 'login-central' }" class="auth-link">
-            Administración SoftDIN Central
-          </RouterLink>
-        </p>
 
         <p v-if="infoMessage" class="info-box">{{ infoMessage }}</p>
         <p v-if="error" class="error-box">{{ error }}</p>
@@ -365,6 +368,24 @@ const selectedTenantLogoUrl = computed(() => {
 .auth-link:hover {
   color: var(--color-brand-700);
   text-decoration: underline;
+}
+
+.brand-link {
+  display: inline-flex;
+  border-radius: 0.75rem;
+  color: inherit;
+  text-decoration: none;
+  transition: background-color 0.15s, transform 0.15s;
+}
+
+.brand-link:hover {
+  background: #f8fafc;
+  transform: translateY(-1px);
+}
+
+.brand-link:focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 4px;
 }
 
 .bg-brand-50 {

@@ -55,10 +55,9 @@ const initials = computed(() => {
   </div>
 
   <div v-else class="brand-row">
-    <img :src="softdinLogo" alt="SoftDIN" class="brand-logo" />
+    <img :src="softdinLogo" alt="SoftDIN Central" class="brand-logo" />
     <div class="brand-text">
-      <span class="brand-title">SoftDIN</span>
-      <span class="brand-subtitle">CENTRAL</span>
+      <span class="brand-title">SoftDIN Central</span>
     </div>
   </div>
 </template>

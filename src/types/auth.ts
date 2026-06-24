@@ -28,8 +28,6 @@ export interface PublicTenant {
 export interface RegisterPayload {
   name: string
   email: string
-  password: string
-  password_confirmation: string
   tenant_mode: 'new' | 'existing'
   tenant_slug: string
   tenant_name?: string
@@ -45,6 +43,9 @@ export interface PublicTenantsResponse {
 export interface RegisterResponse {
   message: string
   user: User
+  mail_sent?: boolean
+  debug_activation_url?: string
+  debug_mail_error?: string
 }
 
 export interface ForgotPasswordResponse {

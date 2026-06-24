@@ -9,6 +9,24 @@ import type { PublicTenant } from '@/types/auth'
 
 const router = useRouter()
 
+function buildMailFailureMessage(response: {
+  message: string
+  debug_activation_url?: string
+  debug_mail_error?: string
+}): string {
+  let message = response.message
+
+  if (import.meta.env.DEV && response.debug_mail_error) {
+    message += ` Detalle: ${response.debug_mail_error}`
+  }
+
+  if (import.meta.env.DEV && response.debug_activation_url) {
+    message += ` Enlace de desarrollo: ${response.debug_activation_url}`
+  }
+
+  return `${message} También puede usar «Recuperar contraseña» en el inicio de sesión.`
+}
+
 const loading = ref(false)
 const loadingTenants = ref(false)
 const error = ref<string | null>(null)
@@ -21,8 +39,6 @@ const logoInput = ref<HTMLInputElement | null>(null)
 const form = reactive({
   name: '',
   email: '',
-  password: '',
-  passwordConfirmation: '',
   tenantMode: 'new' as 'new' | 'existing',
   tenantName: '',
   tenantSlug: '',
@@ -203,11 +219,6 @@ function applyApiErrors(errors?: Record<string, string[]>): void {
 async function handleSubmit(): Promise<void> {
   clearErrors()
 
-  if (form.password !== form.passwordConfirmation) {
-    error.value = 'La confirmación de contraseña no coincide.'
-    return
-  }
-
   if (form.tenantMode === 'new' && !form.tenantName.trim()) {
     fieldErrors.value.tenant_name = 'Indique el nombre del nuevo cliente.'
     return
@@ -229,8 +240,6 @@ async function handleSubmit(): Promise<void> {
     const payload = {
       name: form.name.trim(),
       email: form.email.trim(),
-      password: form.password,
-      password_confirmation: form.passwordConfirmation,
       tenant_mode: form.tenantMode,
       tenant_slug:
         form.tenantMode === 'new'
@@ -248,9 +257,12 @@ async function handleSubmit(): Promise<void> {
 
     const data = await authService.register(payload, logoFile.value)
 
+    const loginMessage =
+      data.mail_sent === false ? buildMailFailureMessage(data) : data.message
+
     await router.push({
       name: 'login',
-      query: { message: data.message },
+      query: { message: loginMessage },
     })
   } catch (err) {
     if (axios.isAxiosError(err)) {
@@ -283,7 +295,7 @@ async function handleSubmit(): Promise<void> {
   <AuthShell
     extra-wide
     title="Crear cuenta"
-    subtitle="Complete sus datos de usuario y luego la información del cliente."
+    subtitle="Complete sus datos de usuario y la información del cliente. Recibirá un correo para activar su cuenta."
   >
     <form class="register-form" @submit.prevent="handleSubmit">
       <!-- Panel: Usuario -->
@@ -292,7 +304,7 @@ async function handleSubmit(): Promise<void> {
           <span class="panel-icon panel-icon-user">U</span>
           <div>
             <h2 class="panel-title">Datos del usuario</h2>
-            <p class="panel-subtitle">Información de acceso a SoftDIN</p>
+            <p class="panel-subtitle">Nombre y correo de acceso a SoftDIN</p>
           </div>
         </header>
 
@@ -325,32 +337,12 @@ async function handleSubmit(): Promise<void> {
             <p v-if="fieldErrors.email" class="field-error">{{ fieldErrors.email }}</p>
           </div>
 
-          <div>
-            <label for="password" class="label">Contraseña</label>
-            <input
-              id="password"
-              v-model="form.password"
-              type="password"
-              required
-              minlength="8"
-              autocomplete="new-password"
-              class="input-field"
-              :class="{ 'input-error': fieldErrors.password }"
-            />
-            <p v-if="fieldErrors.password" class="field-error">{{ fieldErrors.password }}</p>
-          </div>
-
-          <div>
-            <label for="passwordConfirmation" class="label">Confirmar contraseña</label>
-            <input
-              id="passwordConfirmation"
-              v-model="form.passwordConfirmation"
-              type="password"
-              required
-              minlength="8"
-              autocomplete="new-password"
-              class="input-field"
-            />
+          <div class="invitation-notice">
+            <p class="invitation-notice-title">Activación por correo</p>
+            <p class="invitation-notice-text">
+              No debe definir contraseña aquí. Al crear la cuenta le enviaremos un correo para
+              activar su acceso y elegir su contraseña.
+            </p>
           </div>
         </div>
       </section>
@@ -676,6 +668,26 @@ async function handleSubmit(): Promise<void> {
   margin-top: 0.25rem;
   font-size: 0.75rem;
   color: #64748b;
+}
+
+.invitation-notice {
+  border-radius: 0.5rem;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  padding: 0.75rem;
+}
+
+.invitation-notice-title {
+  margin-bottom: 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #1e40af;
+}
+
+.invitation-notice-text {
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: #1e3a8a;
 }
 
 .mode-toggle {

@@ -103,7 +103,7 @@ async function handleSubmit(): Promise<void> {
             ¿Olvidó su contraseña?
           </RouterLink>
           <RouterLink :to="{ name: 'login' }" class="auth-link">
-            Acceso operacional (clientes / tenants)
+            Acceso Clientes (tenants)
           </RouterLink>
         </div>
 
