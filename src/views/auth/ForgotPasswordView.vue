@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import axios from 'axios'
 import AuthShell from '@/components/auth/AuthShell.vue'
 import { authService } from '@/services/auth.service'
 
-const router = useRouter()
 const route = useRoute()
 
 const loading = ref(false)

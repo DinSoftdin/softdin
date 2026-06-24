@@ -89,7 +89,8 @@ export const tenantAuditService = {
       responseType: 'blob',
     })
 
-    const contentType = response.headers['content-type'] ?? ''
+    const rawContentType = response.headers['content-type']
+    const contentType = typeof rawContentType === 'string' ? rawContentType : ''
     if (contentType.includes('application/json')) {
       const text = await response.data.text()
       const payload = JSON.parse(text) as { message?: string }
