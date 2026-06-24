@@ -12,8 +12,7 @@ export const appRoutes: RouteRecordRaw = {
     },
     {
       path: 'datos-maestros',
-      name: 'datos-maestros',
-      component: () => import('@/views/app/DatosMaestrosView.vue'),
+      redirect: { name: 'maestros-geografia' },
     },
     {
       path: 'perfil',
@@ -28,16 +27,22 @@ export const appRoutes: RouteRecordRaw = {
       meta: { title: 'Logo del cliente', requiresTenantLogoManage: true },
     },
     {
+      path: 'auditoria',
+      name: 'tenant-audit',
+      component: () => import('@/views/app/TenantAuditListView.vue'),
+      meta: { title: 'Auditoría', requiresTenantAudit: true },
+    },
+    {
+      path: 'maestros/geografia',
+      name: 'maestros-geografia',
+      component: () => import('@/views/app/GeografiaAdminView.vue'),
+      meta: { title: 'Geografía', module: 'Maestros' },
+    },
+    {
       path: 'maestros/cargos',
       name: 'maestros-cargos',
       component: () => import('@/views/app/PlaceholderView.vue'),
       meta: { title: 'Cargos', module: 'Maestros' },
-    },
-    {
-      path: 'maestros/paises',
-      name: 'maestros-paises',
-      component: () => import('@/views/app/PlaceholderView.vue'),
-      meta: { title: 'Países', module: 'Maestros' },
     },
     {
       path: 'maestros/terceros',

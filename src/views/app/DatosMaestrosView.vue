@@ -5,7 +5,7 @@ import { menuModules } from '@/config/menu'
 
 const router = useRouter()
 
-const maestrosModule = computed(() => menuModules.find((module) => module.id === 'maestros'))
+const maestrosModule = computed(() => menuModules.find((module) => module.id === 'registros-maestros'))
 
 function goTo(routeName?: string): void {
   if (routeName) {
@@ -17,7 +17,7 @@ function goTo(routeName?: string): void {
 <template>
   <div class="mx-auto max-w-5xl space-y-6">
     <section class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-      <p class="text-sm font-medium text-brand-600">Datos Maestros</p>
+      <p class="text-sm font-medium text-brand-600">Registros Maestros</p>
       <h1 class="mt-1 text-2xl font-bold text-slate-900">Catálogos operacionales</h1>
       <p class="mt-2 text-slate-600">
         Seleccione un maestro para consultar o administrar la información del cliente activo.

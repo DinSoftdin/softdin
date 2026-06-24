@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
+import { registrosMaestrosMenu } from '@/config/menu'
 
 const open = defineModel<boolean>('open', { default: false })
 const collapsed = defineModel<boolean>('collapsed', { default: false })
@@ -16,8 +17,13 @@ const router = useRouter()
 
 const switchingTenant = ref(false)
 const tenantError = ref<string | null>(null)
+const registrosMaestrosExpanded = ref(true)
 
 const isCompact = computed(() => collapsed.value && !open.value)
+
+const registrosMaestrosItems = computed(() =>
+  registrosMaestrosMenu.children.filter((item) => item.ready && item.routeName),
+)
 
 const selectedTenantSlug = computed({
   get: () => auth.activeTenant?.slug ?? '',
@@ -32,8 +38,24 @@ const tenantInitials = computed(() => {
   return parts.map((part) => part[0]?.toUpperCase() ?? '').join('') || 'SD'
 })
 
-function isDatosMaestrosActive(): boolean {
-  return route.path === '/datos-maestros' || route.path.startsWith('/maestros/')
+function isRegistrosMaestrosActive(): boolean {
+  return route.path.startsWith('/maestros/')
+}
+
+function isRegistrosMaestrosRoute(routeName?: string): boolean {
+  return Boolean(routeName && route.name === routeName)
+}
+
+function toggleRegistrosMaestros(): void {
+  if (isCompact.value) {
+    const first = registrosMaestrosItems.value[0]
+    if (first?.routeName) {
+      navigateTo(first.routeName)
+    }
+    return
+  }
+
+  registrosMaestrosExpanded.value = !registrosMaestrosExpanded.value
 }
 
 function navigateTo(routeName: string): void {
@@ -71,6 +93,16 @@ async function handleTenantChange(event: Event): Promise<void> {
     switchingTenant.value = false
   }
 }
+
+watch(
+  () => route.path,
+  (path) => {
+    if (path.startsWith('/maestros/')) {
+      registrosMaestrosExpanded.value = true
+    }
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -155,18 +187,55 @@ async function handleTenantChange(event: Event): Promise<void> {
         <span v-if="!isCompact" class="nav-label">Inicio</span>
       </button>
 
+      <div class="nav-group mt-1">
+        <button
+          type="button"
+          class="nav-item nav-item-parent"
+          :class="[
+            isRegistrosMaestrosActive() ? 'nav-item-active' : 'nav-item-inactive',
+            isCompact ? 'nav-item-collapsed' : '',
+          ]"
+          :title="registrosMaestrosMenu.label"
+          :aria-expanded="registrosMaestrosExpanded"
+          @click="toggleRegistrosMaestros"
+        >
+          <span class="nav-icon">{{ registrosMaestrosMenu.icon }}</span>
+          <span v-if="!isCompact" class="nav-label">{{ registrosMaestrosMenu.label }}</span>
+          <span v-if="!isCompact" class="nav-chevron" aria-hidden="true">
+            {{ registrosMaestrosExpanded ? '▾' : '▸' }}
+          </span>
+        </button>
+
+        <div
+          v-if="!isCompact && registrosMaestrosExpanded"
+          class="nav-subitems"
+        >
+          <button
+            v-for="item in registrosMaestrosItems"
+            :key="item.routeName"
+            type="button"
+            class="nav-subitem"
+            :class="isRegistrosMaestrosRoute(item.routeName) ? 'nav-subitem-active' : 'nav-subitem-inactive'"
+            @click="navigateTo(item.routeName!)"
+          >
+            {{ item.label }}
+          </button>
+        </div>
+      </div>
+
       <button
+        v-if="auth.canViewTenantAudit"
         type="button"
         class="nav-item mt-1"
         :class="[
-          isDatosMaestrosActive() ? 'nav-item-active' : 'nav-item-inactive',
+          route.name === 'tenant-audit' ? 'nav-item-active' : 'nav-item-inactive',
           isCompact ? 'nav-item-collapsed' : '',
         ]"
-        title="Datos Maestros"
-        @click="navigateTo('datos-maestros')"
+        title="Auditoría"
+        @click="navigateTo('tenant-audit')"
       >
-        <span class="nav-icon">M</span>
-        <span v-if="!isCompact" class="nav-label">Datos Maestros</span>
+        <span class="nav-icon">A</span>
+        <span v-if="!isCompact" class="nav-label">Auditoría</span>
       </button>
     </nav>
 
@@ -284,6 +353,57 @@ async function handleTenantChange(event: Event): Promise<void> {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.nav-item-parent {
+  justify-content: flex-start;
+}
+
+.nav-chevron {
+  margin-left: auto;
+  font-size: 0.75rem;
+  opacity: 0.85;
+}
+
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.nav-subitems {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding-left: 0.5rem;
+  margin-left: 1.375rem;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.nav-subitem {
+  width: 100%;
+  border: none;
+  border-radius: 0.375rem;
+  background: transparent;
+  padding: 0.4rem 0.625rem;
+  text-align: left;
+  font-size: 0.8125rem;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.nav-subitem-active {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-weight: 600;
+}
+
+.nav-subitem-inactive {
+  color: #94a3b8;
+}
+
+.nav-subitem-inactive:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e2e8f0;
 }
 
 .text-brand-100 {

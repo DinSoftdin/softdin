@@ -14,18 +14,21 @@ export interface MenuModule {
   children: MenuItem[]
 }
 
+/** Registros maestros del tenant (sidebar operacional). */
+export const registrosMaestrosMenu: MenuModule = {
+  id: 'registros-maestros',
+  label: 'Registros Maestros',
+  icon: 'M',
+  children: [
+    { label: 'Geografía', route: '/maestros/geografia', routeName: 'maestros-geografia', ready: true },
+    { label: 'Cargos', route: '/maestros/cargos', routeName: 'maestros-cargos', ready: false },
+    { label: 'Terceros', route: '/maestros/terceros', routeName: 'maestros-terceros', ready: false },
+  ],
+}
+
 /** Menú modular: activar `ready: true` al implementar cada pantalla. */
 export const menuModules: MenuModule[] = [
-  {
-    id: 'maestros',
-    label: 'Maestros',
-    icon: 'M',
-    children: [
-      { label: 'Cargos', route: '/maestros/cargos', routeName: 'maestros-cargos', ready: false },
-      { label: 'Países', route: '/maestros/paises', routeName: 'maestros-paises', ready: false },
-      { label: 'Terceros', route: '/maestros/terceros', routeName: 'maestros-terceros', ready: false },
-    ],
-  },
+  registrosMaestrosMenu,
   {
     id: 'nomina',
     label: 'Nómina',

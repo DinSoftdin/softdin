@@ -89,6 +89,10 @@ router.beforeEach(async (to) => {
     return { name: 'home' }
   }
 
+  if (to.meta.requiresTenantAudit && !auth.canViewTenantAudit) {
+    return { name: 'home' }
+  }
+
   if (to.meta.requiresSuperuser && !auth.isSuperuser) {
     return { name: 'central-home' }
   }

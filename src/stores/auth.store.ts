@@ -84,6 +84,12 @@ export const useAuthStore = defineStore('auth', () => {
   const canManageActiveTenantLogo = computed(() =>
     canManageTenantLogo(activeTenant.value, user.value),
   )
+  const canViewTenantAudit = computed(() =>
+    canManageTenantLogo(activeTenant.value, user.value),
+  )
+  const canManageGeografia = computed(() =>
+    canManageTenantLogo(activeTenant.value, user.value),
+  )
   const tenantLogoUrl = computed(() => {
     const tenant = activeTenant.value
     if (!tenant?.has_logo) {
@@ -333,6 +339,8 @@ export const useAuthStore = defineStore('auth', () => {
     platformRoleLabel,
     hasMultipleTenants,
     canManageActiveTenantLogo,
+    canViewTenantAudit,
+    canManageGeografia,
     login,
     loginCentral,
     logout,
