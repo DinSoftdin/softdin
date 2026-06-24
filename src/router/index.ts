@@ -40,6 +40,11 @@ router.beforeEach(async (to) => {
   }
 
   if (to.meta.guest && auth.isAuthenticated) {
+    if (to.name === 'login') {
+      auth.clearSession()
+      return true
+    }
+
     return { name: resolveGuestRedirect(auth, to.meta.guest) }
   }
 
@@ -78,6 +83,10 @@ router.beforeEach(async (to) => {
 
   if (to.meta.requiresAdmin && !auth.isPlatformAdmin) {
     return auth.isCentralSession ? { name: 'central-home' } : { name: 'home' }
+  }
+
+  if (to.meta.requiresTenantLogoManage && !auth.canManageActiveTenantLogo) {
+    return { name: 'home' }
   }
 
   if (to.meta.requiresSuperuser && !auth.isSuperuser) {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import AuthBrandHeader from '@/components/auth/AuthBrandHeader.vue'
@@ -26,11 +26,42 @@ const form = reactive({
   tenant: '',
 })
 
+const tenantSelect = ref<HTMLSelectElement | null>(null)
+
+function normalizeTenants(value: unknown): Tenant[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value.filter((tenant): tenant is Tenant => Boolean(tenant?.slug))
+}
+
+function resetLoginWizard(): void {
+  step.value = 1
+  error.value = null
+  loadingCentral.value = false
+  loggingIn.value = false
+  centralUser.value = null
+  availableTenants.value = []
+  form.tenant = ''
+}
+
 onMounted(() => {
+  resetLoginWizard()
+
   if (typeof route.query.message === 'string') {
     infoMessage.value = route.query.message
   }
 })
+
+watch(
+  () => route.name,
+  (name) => {
+    if (name === 'login') {
+      resetLoginWizard()
+    }
+  },
+)
 
 async function completeLogin(tenantSlug: string): Promise<void> {
   error.value = null
@@ -70,17 +101,29 @@ async function continueToTenant(): Promise<void> {
 
   try {
     const data = await authService.centralLogin(form.email.trim(), form.password)
-    centralUser.value = data.user
-    availableTenants.value = data.tenants
+    const tenants = normalizeTenants(data.tenants)
 
-    if (data.tenants.length === 1) {
-      form.tenant = data.tenants[0].slug
-      await completeLogin(data.tenants[0].slug)
+    if (tenants.length === 0) {
+      error.value = 'No tiene clientes activos asignados. Contacte al administrador.'
       return
     }
 
-    form.tenant = ''
-    step.value = 2
+    centralUser.value = data.user
+    availableTenants.value = tenants
+
+    const mustSelectTenant =
+      data.tenant_selection_required === true || tenants.length > 1
+
+    if (mustSelectTenant) {
+      form.tenant = ''
+      step.value = 2
+      await nextTick()
+      tenantSelect.value?.focus()
+      return
+    }
+
+    form.tenant = tenants[0].slug
+    await completeLogin(tenants[0].slug)
   } catch (err) {
     if (axios.isAxiosError(err)) {
       const responseData = err.response?.data as {
@@ -106,6 +149,7 @@ function backToCentral(): void {
   centralUser.value = null
   availableTenants.value = []
   form.tenant = ''
+  loggingIn.value = false
 }
 
 async function handleSubmit(): Promise<void> {
@@ -193,12 +237,9 @@ const selectedTenantLogoUrl = computed(() => {
           />
         </div>
 
-        <div class="flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
+        <div class="text-sm">
           <RouterLink :to="{ name: 'forgot-password' }" class="auth-link">
             ¿Olvidó su contraseña?
-          </RouterLink>
-          <RouterLink :to="{ name: 'register' }" class="auth-link">
-            Crear usuario nuevo
           </RouterLink>
         </div>
 
@@ -254,6 +295,7 @@ const selectedTenantLogoUrl = computed(() => {
 
           <select
             id="tenant"
+            ref="tenantSelect"
             v-model="form.tenant"
             required
             class="input-field"

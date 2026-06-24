@@ -98,6 +98,7 @@ export interface ProfilePhotoResponse {
 export interface CentralLoginResponse {
   user: User
   tenants: Tenant[]
+  tenant_selection_required?: boolean
 }
 
 export interface AuthResponse {
