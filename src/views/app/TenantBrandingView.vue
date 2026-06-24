@@ -165,7 +165,7 @@ onUnmounted(() => clearPreview())
     </div>
 
     <div v-if="!auth.canManageActiveTenantLogo" class="alert alert-warning">
-      Solo el propietario o un administrador del cliente puede modificar el logo.
+      Solo un administrador del cliente puede modificar el logo.
     </div>
 
     <section class="card">

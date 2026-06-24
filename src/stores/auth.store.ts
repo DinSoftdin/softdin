@@ -82,7 +82,7 @@ export const useAuthStore = defineStore('auth', () => {
   })
   const hasMultipleTenants = computed(() => tenants.value.length > 1)
   const canManageActiveTenantLogo = computed(() =>
-    canManageTenantLogo(activeTenant.value, isPlatformAdmin.value),
+    canManageTenantLogo(activeTenant.value, user.value),
   )
   const tenantLogoUrl = computed(() => {
     const tenant = activeTenant.value

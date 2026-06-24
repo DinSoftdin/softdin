@@ -1,5 +1,5 @@
 import { api } from '@/services/api'
-import type { Tenant, TenantLogoResponse } from '@/types/auth'
+import type { Tenant, TenantLogoResponse, User } from '@/types/auth'
 import type {
   AttachCentralTenantUserPayload,
   AttachCentralTenantUserResponse,
@@ -185,16 +185,19 @@ export const tenantService = {
   },
 }
 
-export function canManageTenantLogo(tenant: Tenant | null, isPlatformAdmin: boolean): boolean {
-  if (!tenant) {
+export function canManageTenantLogo(
+  tenant: Tenant | null,
+  user: Pick<User, 'is_admin' | 'is_superuser'> | null,
+): boolean {
+  if (!tenant || !user) {
     return false
   }
 
-  if (isPlatformAdmin) {
+  if (user.is_superuser || user.is_admin) {
     return true
   }
 
-  return tenant.role === 'owner' || tenant.role === 'admin'
+  return tenant.role === 'admin'
 }
 
 export function applyTenantUpdate(tenants: Tenant[], updated: Tenant): Tenant[] {

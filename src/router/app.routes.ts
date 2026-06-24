@@ -25,7 +25,7 @@ export const appRoutes: RouteRecordRaw = {
       path: 'cliente/logo',
       name: 'tenant-branding',
       component: () => import('@/views/app/TenantBrandingView.vue'),
-      meta: { title: 'Logo del cliente' },
+      meta: { title: 'Logo del cliente', requiresTenantLogoManage: true },
     },
     {
       path: 'maestros/cargos',
