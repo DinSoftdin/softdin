@@ -27,6 +27,10 @@ export function setupApiInterceptors(
       delete config.headers['X-Tenant']
     }
 
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type']
+    }
+
     return config
   })
 

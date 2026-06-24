@@ -1,53 +1,38 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { reactive, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import axios from 'axios'
 import AuthShell from '@/components/auth/AuthShell.vue'
 import { authService } from '@/services/auth.service'
 
-const router = useRouter()
 const route = useRoute()
-
-const isActivation = computed(() => route.query.activation === '1')
 
 const loading = ref(false)
 const error = ref<string | null>(null)
+const success = ref<string | null>(null)
+const debugResetUrl = ref<string | null>(null)
 
 const form = reactive({
   email: typeof route.query.email === 'string' ? route.query.email : '',
-  token: typeof route.query.token === 'string' ? route.query.token : '',
-  password: '',
-  passwordConfirmation: '',
 })
 
 async function handleSubmit(): Promise<void> {
-  if (!form.token) {
-    error.value = 'El enlace de recuperación no es válido. Solicite uno nuevo.'
-    return
-  }
-
   loading.value = true
   error.value = null
+  success.value = null
+  debugResetUrl.value = null
 
   try {
-    const data = await authService.resetPassword({
-      email: form.email.trim(),
-      token: form.token,
-      password: form.password,
-      password_confirmation: form.passwordConfirmation,
-    })
-
-    await router.push({
-      name: 'login',
-      query: { message: data.message },
-    })
+    const data = await authService.forgotPassword(form.email.trim())
+    success.value = data.message
+    debugResetUrl.value = data.debug_reset_url ?? null
   } catch (err) {
     if (axios.isAxiosError(err)) {
       const responseData = err.response?.data as { message?: string; errors?: Record<string, string[]> }
       const firstFieldError = responseData?.errors
         ? Object.values(responseData.errors).flat()[0]
         : undefined
-      error.value = firstFieldError ?? responseData?.message ?? 'No se pudo restablecer la contraseña.'
+      error.value = firstFieldError ?? responseData?.message ?? 'No se pudo procesar la solicitud.'
       return
     }
 
@@ -60,10 +45,8 @@ async function handleSubmit(): Promise<void> {
 
 <template>
   <AuthShell
-    :title="isActivation ? 'Activar cuenta' : 'Nueva contraseña'"
-    :subtitle="isActivation
-      ? 'Defina su contraseña para ingresar por primera vez a SoftDIN.'
-      : 'Defina una contraseña nueva para su usuario central.'"
+    title="Recuperar contraseña"
+    subtitle="SoftDIN Central · administración de plataforma"
   >
     <form class="space-y-4" @submit.prevent="handleSubmit">
       <div>
@@ -73,48 +56,31 @@ async function handleSubmit(): Promise<void> {
           v-model="form.email"
           type="email"
           required
-          readonly
-          class="input-field input-readonly"
-        />
-      </div>
-
-      <div>
-        <label for="password" class="label">Nueva contraseña</label>
-        <input
-          id="password"
-          v-model="form.password"
-          type="password"
-          required
-          minlength="8"
-          autocomplete="new-password"
+          autocomplete="username"
           class="input-field"
         />
       </div>
 
-      <div>
-        <label for="passwordConfirmation" class="label">Confirmar contraseña</label>
-        <input
-          id="passwordConfirmation"
-          v-model="form.passwordConfirmation"
-          type="password"
-          required
-          minlength="8"
-          autocomplete="new-password"
-          class="input-field"
-        />
-      </div>
-
+      <p v-if="success" class="alert-success">{{ success }}</p>
       <p v-if="error" class="alert-error">{{ error }}</p>
 
+      <a
+        v-if="debugResetUrl"
+        :href="debugResetUrl"
+        class="debug-link"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Enlace de restablecimiento (solo desarrollo)
+      </a>
+
       <button type="submit" class="btn-primary" :disabled="loading">
-        {{ loading ? 'Guardando…' : 'Restablecer contraseña' }}
+        {{ loading ? 'Enviando…' : 'Enviar instrucciones' }}
       </button>
     </form>
 
     <template #footer>
-      <RouterLink :to="{ name: 'forgot-password' }" class="link">Solicitar nuevo enlace</RouterLink>
-      ·
-      <RouterLink :to="{ name: 'login' }" class="link">Iniciar sesión</RouterLink>
+      <RouterLink :to="{ name: 'login-central' }" class="link">Volver al acceso central</RouterLink>
     </template>
   </AuthShell>
 </template>
@@ -137,9 +103,9 @@ async function handleSubmit(): Promise<void> {
   outline: none;
 }
 
-.input-readonly {
-  background: #f1f5f9;
-  color: #64748b;
+.input-field:focus {
+  border-color: var(--color-brand-500);
+  box-shadow: 0 0 0 3px var(--color-brand-100);
 }
 
 .btn-primary {
@@ -162,6 +128,21 @@ async function handleSubmit(): Promise<void> {
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
   color: #b91c1c;
+}
+
+.alert-success {
+  border-radius: 0.5rem;
+  background: #f0fdf4;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: #166534;
+}
+
+.debug-link {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-brand-700);
+  word-break: break-all;
 }
 
 .link {

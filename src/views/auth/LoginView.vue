@@ -145,7 +145,7 @@ const selectedTenantLogoUrl = computed(() => {
           :tenant-has-logo="step === 2 ? selectedTenant?.has_logo : false"
         />
         <p v-if="step === 1" class="text-sm text-slate-500">
-          Acceso central · usuario principal
+          Acceso operacional · clientes (tenants)
         </p>
         <p v-else-if="selectedTenant" class="text-sm text-slate-500">
           Ingresar a {{ selectedTenant.name }}
@@ -192,6 +192,12 @@ const selectedTenantLogoUrl = computed(() => {
             Crear usuario nuevo
           </RouterLink>
         </div>
+
+        <p class="text-center text-sm">
+          <RouterLink :to="{ name: 'login-central' }" class="auth-link">
+            Administración SoftDIN Central
+          </RouterLink>
+        </p>
 
         <p v-if="infoMessage" class="info-box">{{ infoMessage }}</p>
         <p v-if="error" class="error-box">{{ error }}</p>

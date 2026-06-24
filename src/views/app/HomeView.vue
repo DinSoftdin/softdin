@@ -8,7 +8,7 @@ const auth = useAuthStore()
 const router = useRouter()
 
 const modules = computed(() =>
-  menuModules.filter((module) => !module.adminOnly || auth.isAdmin),
+  menuModules.filter((module) => !module.adminOnly || auth.isPlatformAdmin),
 )
 
 function goTo(route?: string): void {

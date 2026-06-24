@@ -13,6 +13,8 @@ export interface User {
   name: string
   email: string
   is_admin?: boolean
+  is_superuser?: boolean
+  is_platform_admin?: boolean
   has_avatar?: boolean
 }
 
@@ -63,6 +65,11 @@ export interface MessageResponse {
   message: string
 }
 
+export interface CentralAdminLoginCredentials {
+  email: string
+  password: string
+}
+
 export interface LoginCredentials {
   email: string
   password: string
@@ -97,6 +104,7 @@ export interface AuthResponse {
   user: User
   tenants: Tenant[]
   active_tenant: Tenant | null
+  session_mode?: 'tenant' | 'central' | null
 }
 
 export interface MeResponse {
@@ -104,6 +112,7 @@ export interface MeResponse {
   tenants: Tenant[]
   active_tenant: Tenant | null
   token_tenant?: Tenant | null
+  session_mode?: 'tenant' | 'central' | null
 }
 
 export interface TenantLogoResponse {

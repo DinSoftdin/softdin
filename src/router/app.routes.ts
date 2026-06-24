@@ -3,7 +3,7 @@ import type { RouteRecordRaw } from 'vue-router'
 export const appRoutes: RouteRecordRaw = {
   path: '/',
   component: () => import('@/views/app/AppLayout.vue'),
-  meta: { requiresAuth: true },
+  meta: { requiresAuth: true, requiresTenantSession: true },
   children: [
     {
       path: '',
@@ -68,12 +68,6 @@ export const appRoutes: RouteRecordRaw = {
       name: 'otros-reportes',
       component: () => import('@/views/app/PlaceholderView.vue'),
       meta: { title: 'Reportes', module: 'Otros' },
-    },
-    {
-      path: 'admin/tenants',
-      name: 'admin-tenants',
-      component: () => import('@/views/app/PlaceholderView.vue'),
-      meta: { title: 'Clientes (Tenants)', module: 'Administración', requiresAdmin: true },
     },
   ],
 }

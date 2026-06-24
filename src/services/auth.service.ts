@@ -2,6 +2,7 @@ import { api } from '@/services/api'
 import type {
   AuthResponse,
   CentralLoginResponse,
+  CentralAdminLoginCredentials,
   LoginCredentials,
   MeResponse,
   ProfilePhotoResponse,
@@ -59,6 +60,11 @@ export const authService = {
       email,
       password,
     })
+    return data
+  },
+
+  async centralAdminLogin(credentials: CentralAdminLoginCredentials): Promise<AuthResponse> {
+    const { data } = await api.post<AuthResponse>('/auth/central-admin-login', credentials)
     return data
   },
 

@@ -51,18 +51,4 @@ export const menuModules: MenuModule[] = [
       { label: 'Reportes', route: '/otros/reportes', routeName: 'otros-reportes', ready: false },
     ],
   },
-  {
-    id: 'admin',
-    label: 'Administración',
-    icon: 'A',
-    adminOnly: true,
-    children: [
-      {
-        label: 'Clientes (Tenants)',
-        route: '/admin/tenants',
-        routeName: 'admin-tenants',
-        ready: false,
-      },
-    ],
-  },
 ]

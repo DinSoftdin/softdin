@@ -16,8 +16,9 @@ setupApiInterceptors(
   () => useAuthStore().activeTenant?.slug ?? null,
   () => {
     const auth = useAuthStore()
+    const loginRoute = auth.isCentralSession ? 'login-central' : 'login'
     auth.clearSession()
-    router.push({ name: 'login' })
+    router.push({ name: loginRoute })
   },
   () => {
     const auth = useAuthStore()

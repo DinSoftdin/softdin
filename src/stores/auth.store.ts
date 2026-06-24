@@ -7,7 +7,15 @@ import {
   tenantLogoPublicUrl,
   tenantService,
 } from '@/services/tenant.service'
-import type { LoginCredentials, Tenant, UpdateProfilePayload, User } from '@/types/auth'
+import type {
+  CentralAdminLoginCredentials,
+  LoginCredentials,
+  Tenant,
+  UpdateProfilePayload,
+  User,
+} from '@/types/auth'
+
+export type SessionMode = 'tenant' | 'central'
 
 const STORAGE_KEY = 'softdin_auth'
 
@@ -16,6 +24,7 @@ interface StoredAuth {
   user: User
   tenants: Tenant[]
   activeTenant: Tenant | null
+  sessionMode: SessionMode | null
 }
 
 function readStorage(): StoredAuth | null {
@@ -42,15 +51,38 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(stored?.user ?? null)
   const tenants = ref<Tenant[]>(stored?.tenants ?? [])
   const activeTenant = ref<Tenant | null>(stored?.activeTenant ?? null)
+  const sessionMode = ref<SessionMode | null>(
+    stored?.sessionMode ?? (stored?.activeTenant ? 'tenant' : null),
+  )
   const loading = ref(false)
   const avatarUrl = ref<string | null>(null)
   const tenantLogoVersion = ref(0)
 
   const isAuthenticated = computed(() => Boolean(token.value))
+  const isCentralSession = computed(() => sessionMode.value === 'central')
+  const isTenantSession = computed(() => sessionMode.value === 'tenant')
+  const isSuperuser = computed(() => Boolean(user.value?.is_superuser))
   const isAdmin = computed(() => Boolean(user.value?.is_admin))
+  const isPlatformAdmin = computed(
+    () =>
+      Boolean(
+        user.value?.is_platform_admin ?? user.value?.is_superuser ?? user.value?.is_admin,
+      ),
+  )
+  const platformRoleLabel = computed(() => {
+    if (isSuperuser.value) {
+      return 'Superusuario'
+    }
+
+    if (isAdmin.value) {
+      return 'Admin cliente'
+    }
+
+    return null
+  })
   const hasMultipleTenants = computed(() => tenants.value.length > 1)
   const canManageActiveTenantLogo = computed(() =>
-    canManageTenantLogo(activeTenant.value, isAdmin.value),
+    canManageTenantLogo(activeTenant.value, isPlatformAdmin.value),
   )
   const tenantLogoUrl = computed(() => {
     const tenant = activeTenant.value
@@ -78,6 +110,7 @@ export const useAuthStore = defineStore('auth', () => {
       user: user.value,
       tenants: tenants.value,
       activeTenant: activeTenant.value,
+      sessionMode: sessionMode.value,
     })
   }
 
@@ -86,11 +119,13 @@ export const useAuthStore = defineStore('auth', () => {
     user: User
     tenants: Tenant[]
     activeTenant: Tenant | null
+    sessionMode: SessionMode | null
   }): void {
     token.value = data.token
     user.value = data.user
     tenants.value = data.tenants
     activeTenant.value = data.activeTenant
+    sessionMode.value = data.sessionMode
     persist()
     void loadAvatar()
   }
@@ -102,6 +137,7 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null
     tenants.value = []
     activeTenant.value = null
+    sessionMode.value = null
     removeStorage()
   }
 
@@ -129,6 +165,23 @@ export const useAuthStore = defineStore('auth', () => {
         user: data.user,
         tenants: data.tenants,
         activeTenant: data.active_tenant,
+        sessionMode: data.session_mode ?? (data.active_tenant ? 'tenant' : null),
+      })
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function loginCentral(credentials: CentralAdminLoginCredentials): Promise<void> {
+    loading.value = true
+    try {
+      const data = await authService.centralAdminLogin(credentials)
+      setSession({
+        token: data.token,
+        user: data.user,
+        tenants: data.tenants,
+        activeTenant: null,
+        sessionMode: data.session_mode ?? 'central',
       })
     } finally {
       loading.value = false
@@ -144,6 +197,12 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = data.user
     tenants.value = data.tenants
     activeTenant.value = data.active_tenant
+    sessionMode.value = data.session_mode ?? (data.active_tenant ? 'tenant' : null)
+
+    if (sessionMode.value === 'central' && !data.user.is_superuser) {
+      sessionMode.value = null
+    }
+
     persist()
     await loadAvatar()
   }
@@ -180,6 +239,7 @@ export const useAuthStore = defineStore('auth', () => {
         user: data.user,
         tenants: data.tenants,
         activeTenant: data.active_tenant,
+        sessionMode: 'tenant',
       })
     } finally {
       loading.value = false
@@ -259,15 +319,22 @@ export const useAuthStore = defineStore('auth', () => {
     user,
     tenants,
     activeTenant,
+    sessionMode,
     avatarUrl,
     tenantLogoUrl,
     tenantLogoVersion,
     loading,
     isAuthenticated,
+    isCentralSession,
+    isTenantSession,
+    isSuperuser,
     isAdmin,
+    isPlatformAdmin,
+    platformRoleLabel,
     hasMultipleTenants,
     canManageActiveTenantLogo,
     login,
+    loginCentral,
     logout,
     fetchMe,
     loadAvatar,

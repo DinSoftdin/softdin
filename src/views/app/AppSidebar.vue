@@ -124,7 +124,7 @@ async function handleTenantChange(event: Event): Promise<void> {
           </option>
         </select>
 
-        <p v-else class="mt-1 truncate text-sm text-slate-300">
+        <p v-else-if="auth.activeTenant" class="mt-1 truncate text-sm text-slate-300">
           {{ auth.activeTenant.name }}
         </p>
 

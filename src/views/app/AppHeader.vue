@@ -140,6 +140,9 @@ onUnmounted(() => document.removeEventListener('click', onDocumentClick))
             <div class="min-w-0">
               <p class="truncate text-sm font-semibold text-slate-900">{{ auth.user?.name }}</p>
               <p class="truncate text-xs text-slate-500">{{ auth.user?.email }}</p>
+              <p v-if="auth.platformRoleLabel" class="mt-1 text-xs font-medium text-brand-700">
+                {{ auth.platformRoleLabel }}
+              </p>
             </div>
           </div>
         </div>
