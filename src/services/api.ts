@@ -1,7 +1,8 @@
 import axios from 'axios'
+import { API_BASE_URL } from '@/config/apiBase'
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api/v1',
+  baseURL: API_BASE_URL,
   headers: {
     Accept: 'application/json',
     'Content-Type': 'application/json',
@@ -40,7 +41,7 @@ export function setupApiInterceptors(
     }
 
     const slug = getTenantSlug()
-    if (slug) {
+    if (slug && !isPublicAuthRequest(config)) {
       config.headers['X-Tenant'] = slug
     } else {
       delete config.headers['X-Tenant']
@@ -59,7 +60,7 @@ export function setupApiInterceptors(
       const status = error.response?.status
       const message = error.response?.data?.message
 
-      if (status === 401) {
+      if (status === 401 && !isPublicAuthRequest(error.config ?? {})) {
         onUnauthorized()
       }
 

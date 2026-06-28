@@ -22,12 +22,11 @@ import type {
   UpdateCentralTenantPayload,
   UpdateCentralTenantResponse,
 } from '@/types/tenant'
-
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api/v1'
+import { API_BASE_URL } from '@/config/apiBase'
 
 export function tenantLogoPublicUrl(slug: string, version = 0): string {
   const query = version > 0 ? `?v=${version}` : ''
-  return `${API_BASE}/tenants/${encodeURIComponent(slug)}/logo${query}`
+  return `${API_BASE_URL}/tenants/${encodeURIComponent(slug)}/logo${query}`
 }
 
 function appendBoolean(formData: FormData, key: string, value: boolean | undefined): void {

@@ -5,8 +5,12 @@ export function extractAxiosErrorMessage(error: unknown, fallback: string): stri
     return 'Error de conexión con el servidor.'
   }
 
-  const status = error.response?.status
-  const data = error.response?.data
+  if (!error.response) {
+    return 'No hay respuesta del servidor. Compruebe que la API esté en ejecución (php artisan serve en softdin-api).'
+  }
+
+  const status = error.response.status
+  const data = error.response.data
 
   if (typeof data === 'object' && data !== null) {
     const payload = data as { message?: string; errors?: Record<string, string[]> }
@@ -24,7 +28,7 @@ export function extractAxiosErrorMessage(error: unknown, fallback: string): stri
   }
 
   if (status === 500) {
-    return 'Error interno del servidor. Compruebe que la API esté en ejecución y revise storage/logs/laravel.log.'
+    return 'Error interno del servidor. Revise storage/logs/laravel.log en softdin-api.'
   }
 
   if (status === 503) {
@@ -36,8 +40,12 @@ export function extractAxiosErrorMessage(error: unknown, fallback: string): stri
   }
 
   if (typeof data === 'string' && data.trim() !== '') {
+    if (data.includes('<!DOCTYPE html>') || data.includes('<html')) {
+      return `${fallback} (HTTP ${status}: el servidor respondió HTML, no JSON).`
+    }
+
     return fallback
   }
 
-  return fallback
+  return `${fallback} (HTTP ${status}).`
 }

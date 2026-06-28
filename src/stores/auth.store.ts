@@ -8,6 +8,7 @@ import {
   tenantService,
 } from '@/services/tenant.service'
 import type {
+  AuthResponse,
   CentralAdminLoginCredentials,
   LoginCredentials,
   Tenant,
@@ -182,16 +183,20 @@ export const useAuthStore = defineStore('auth', () => {
     loading.value = true
     try {
       const data = await authService.centralAdminLogin(credentials)
-      setSession({
-        token: data.token,
-        user: data.user,
-        tenants: data.tenants,
-        activeTenant: null,
-        sessionMode: data.session_mode ?? 'central',
-      })
+      setSessionFromCentralAdminLogin(data)
     } finally {
       loading.value = false
     }
+  }
+
+  function setSessionFromCentralAdminLogin(data: AuthResponse): void {
+    setSession({
+      token: data.token,
+      user: data.user,
+      tenants: data.tenants,
+      activeTenant: null,
+      sessionMode: data.session_mode ?? 'central',
+    })
   }
 
   async function fetchMe(): Promise<void> {
@@ -343,6 +348,7 @@ export const useAuthStore = defineStore('auth', () => {
     canManageGeografia,
     login,
     loginCentral,
+    setSessionFromCentralAdminLogin,
     logout,
     fetchMe,
     loadAvatar,

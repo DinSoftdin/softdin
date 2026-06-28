@@ -4,13 +4,18 @@ import { useRoute, useRouter } from 'vue-router'
 import AuthBrandHeader from '@/components/auth/AuthBrandHeader.vue'
 import PasswordInput from '@/components/forms/PasswordInput.vue'
 import { useAuthStore } from '@/stores/auth.store'
-import { extractAxiosErrorMessage } from '@/utils/apiError'
+import {
+  CentralLoginTraceError,
+  centralAdminLoginWithTrace,
+  formatTraceSteps,
+} from '@/utils/centralLoginTrace'
 
 const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 
 const error = ref<string | null>(null)
+const errorTrace = ref<string | null>(null)
 const infoMessage = ref<string | null>(null)
 const loggingIn = ref(false)
 
@@ -27,24 +32,37 @@ onMounted(() => {
 
 async function handleSubmit(): Promise<void> {
   error.value = null
+  errorTrace.value = null
   loggingIn.value = true
 
   try {
-    await auth.loginCentral({
+    const { data } = await centralAdminLoginWithTrace({
       email: form.email.trim(),
       password: form.password,
     })
 
-    const redirect =
-      typeof route.query.redirect === 'string' ? route.query.redirect : '/central'
-    await router.push(redirect)
+    auth.setSessionFromCentralAdminLogin(data)
   } catch (err) {
-    error.value = extractAxiosErrorMessage(
-      err,
-      'No se pudo iniciar sesión en SoftDIN Central.',
-    )
+    if (err instanceof CentralLoginTraceError) {
+      error.value = err.message
+      errorTrace.value = formatTraceSteps(err.steps)
+    } else {
+      error.value = 'Error inesperado al iniciar sesión.'
+      errorTrace.value = err instanceof Error ? err.message : String(err)
+    }
+    return
   } finally {
     loggingIn.value = false
+  }
+
+  const redirect =
+    typeof route.query.redirect === 'string' ? route.query.redirect : '/central'
+
+  try {
+    await router.push(redirect)
+  } catch {
+    error.value =
+      'La sesión se inició, pero no se pudo abrir el panel central. Recargue la página.'
   }
 }
 </script>
@@ -97,7 +115,10 @@ async function handleSubmit(): Promise<void> {
         </div>
 
         <p v-if="infoMessage" class="info-box">{{ infoMessage }}</p>
-        <p v-if="error" class="error-box">{{ error }}</p>
+        <div v-if="error" class="error-box">
+          <p class="error-message">{{ error }}</p>
+          <pre v-if="errorTrace" class="error-trace">{{ errorTrace }}</pre>
+        </div>
 
         <button type="submit" class="btn-primary" :disabled="loggingIn || auth.loading">
           {{ loggingIn || auth.loading ? 'Ingresando…' : 'Ingresar a SoftDIN Central' }}
@@ -154,12 +175,40 @@ async function handleSubmit(): Promise<void> {
   color: #b91c1c;
 }
 
+.error-message {
+  margin: 0;
+}
+
+.error-trace {
+  margin: 0.75rem 0 0;
+  padding: 0.5rem 0.625rem;
+  border-radius: 0.375rem;
+  background: #fff1f2;
+  border: 1px solid #fecaca;
+  font-size: 0.6875rem;
+  line-height: 1.45;
+  color: #7f1d1d;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 16rem;
+  overflow: auto;
+}
+
 .info-box {
   border-radius: 0.5rem;
   background: #f0fdf4;
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
   color: #166534;
+}
+
+.api-hint {
+  border-radius: 0.5rem;
+  background: #f8fafc;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  color: #64748b;
+  word-break: break-all;
 }
 
 .auth-link {
