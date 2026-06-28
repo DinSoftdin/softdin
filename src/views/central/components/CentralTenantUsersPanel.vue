@@ -195,7 +195,7 @@ async function confirmDetach(): Promise<void> {
 }
 
 watch(
-  () => [props.active, props.tenant?.id] as const,
+  () => [props.active, props.tenant?.id, props.tenant?.updated_at] as const,
   ([isActive]) => {
     if (isActive && props.tenant) {
       resetPanelState()

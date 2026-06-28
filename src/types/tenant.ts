@@ -114,6 +114,7 @@ export interface TenantDatabaseStatusResponse {
 
 export interface TenantDatabaseProvisionResponse {
   message: string
+  async?: boolean
   provision: {
     database: string
     database_created: boolean
@@ -122,6 +123,43 @@ export interface TenantDatabaseProvisionResponse {
     database_exists?: boolean
   }
   tenant: CentralTenant
+  progress?: TenantProvisionProgress
+}
+
+export type TenantProvisionStatus = 'idle' | 'running' | 'completed' | 'failed'
+
+export interface TenantProvisionProgress {
+  status: TenantProvisionStatus
+  phase: string | null
+  current: number
+  total: number
+  file: string | null
+  percent: number
+  message: string | null
+  error: string | null
+  started_at?: string | null
+  finished_at?: string | null
+  result?: {
+    database: string
+    database_created: boolean
+    migrated: boolean
+    seeded: boolean
+  } | null
+}
+
+export interface TenantDatabaseProvisionStartResponse {
+  message: string
+  async: boolean
+  progress: TenantProvisionProgress
+}
+
+export interface TenantDatabaseProvisionProgressResponse {
+  message?: string
+  progress: TenantProvisionProgress
+  database: string
+  database_exists: boolean
+  provision?: TenantDatabaseProvisionResponse['provision']
+  tenant?: CentralTenant
 }
 
 export interface TenantDatabaseDropResponse {

@@ -13,7 +13,14 @@ app.use(pinia)
 
 setupApiInterceptors(
   () => useAuthStore().token,
-  () => useAuthStore().activeTenant?.slug ?? null,
+  () => {
+    const auth = useAuthStore()
+    if (auth.isCentralSession) {
+      return null
+    }
+
+    return auth.activeTenant?.slug ?? null
+  },
   () => {
     const auth = useAuthStore()
     const loginRoute = auth.isCentralSession ? 'login-central' : 'login'

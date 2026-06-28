@@ -12,8 +12,11 @@ import type {
   DetachCentralTenantUserResponse,
   TenantAvailableUsersResponse,
   TenantDatabaseDropResponse,
+  TenantDatabaseProvisionProgressResponse,
   TenantDatabaseProvisionResponse,
+  TenantDatabaseProvisionStartResponse,
   TenantDatabaseStatusResponse,
+  TenantProvisionProgress,
   TenantUsersResponse,
   UpdateCentralTenantOptions,
   UpdateCentralTenantPayload,
@@ -90,6 +93,13 @@ export const tenantService = {
     return data.data
   },
 
+  async fetchCentralById(tenantId: string): Promise<CentralTenant> {
+    const { data } = await api.get<{ tenant: CentralTenant }>(
+      `/admin/tenants/${encodeURIComponent(tenantId)}`,
+    )
+    return data.tenant
+  },
+
   async fetchCentralUsers(tenantId: string): Promise<TenantUsersResponse> {
     const { data } = await api.get<TenantUsersResponse>(
       `/admin/tenants/${encodeURIComponent(tenantId)}/users`,
@@ -132,13 +142,55 @@ export const tenantService = {
 
   async provisionCentralDatabase(
     tenantId: string,
-    payload?: { service_type?: 'rrhh' },
-  ): Promise<TenantDatabaseProvisionResponse> {
-    const { data } = await api.post<TenantDatabaseProvisionResponse>(
+    payload?: { service_type?: 'rrhh'; seed?: boolean; async?: boolean },
+  ): Promise<TenantDatabaseProvisionResponse | TenantDatabaseProvisionStartResponse> {
+    const { data } = await api.post<TenantDatabaseProvisionResponse | TenantDatabaseProvisionStartResponse>(
       `/admin/tenants/${encodeURIComponent(tenantId)}/database/provision`,
-      payload ?? { service_type: 'rrhh' },
+      { service_type: 'rrhh', async: true, seed: true, ...payload },
     )
     return data
+  },
+
+  async fetchCentralProvisionProgress(tenantId: string): Promise<TenantDatabaseProvisionProgressResponse> {
+    const { data } = await api.get<TenantDatabaseProvisionProgressResponse>(
+      `/admin/tenants/${encodeURIComponent(tenantId)}/database/provision/progress`,
+    )
+    return data
+  },
+
+  async provisionCentralDatabaseWithProgress(
+    tenantId: string,
+    options?: {
+      seed?: boolean
+      onProgress?: (progress: TenantProvisionProgress) => void
+      pollIntervalMs?: number
+    },
+  ): Promise<TenantDatabaseProvisionProgressResponse> {
+    const startResponse = await this.provisionCentralDatabase(tenantId, {
+      service_type: 'rrhh',
+      seed: options?.seed ?? true,
+      async: true,
+    })
+
+    if ('progress' in startResponse && startResponse.progress) {
+      options?.onProgress?.(startResponse.progress)
+    }
+
+    const interval = options?.pollIntervalMs ?? 600
+    const maxAttempts = Math.ceil((30 * 60 * 1000) / interval)
+
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      const snapshot = await this.fetchCentralProvisionProgress(tenantId)
+      options?.onProgress?.(snapshot.progress)
+
+      if (snapshot.progress.status === 'completed' || snapshot.progress.status === 'failed') {
+        return snapshot
+      }
+
+      await new Promise((resolve) => window.setTimeout(resolve, interval))
+    }
+
+    throw new Error('Tiempo de espera agotado durante la provisión del tenant RRHH.')
   },
 
   async dropCentralDatabase(

@@ -6,7 +6,7 @@ import CentralTenantEditModal from '@/views/central/components/CentralTenantEdit
 import { tenantLogoPublicUrl, tenantService } from '@/services/tenant.service'
 import type { CentralTenant } from '@/types/tenant'
 
-type EditTenantTab = 'info' | 'config'
+type EditTenantTab = 'info' | 'services' | 'users'
 
 const loading = ref(true)
 const error = ref<string | null>(null)
@@ -117,6 +117,17 @@ async function loadTenants(): Promise<void> {
   }
 }
 
+async function onTenantSaved(): Promise<void> {
+  await loadTenants()
+
+  if (selectedTenant.value) {
+    const refreshed = tenants.value.find((item) => item.id === selectedTenant.value?.id)
+    if (refreshed) {
+      selectedTenant.value = refreshed
+    }
+  }
+}
+
 onMounted(() => {
   void loadTenants()
 })
@@ -132,7 +143,7 @@ function openEditModal(tenant: CentralTenant, tab: EditTenantTab = 'info'): void
 }
 
 function openUsersModal(tenant: CentralTenant): void {
-  openEditModal(tenant, 'config')
+  openEditModal(tenant, 'users')
 }
 
 function onTenantRowDblClick(tenant: CentralTenant, event: MouseEvent): void {
@@ -364,12 +375,12 @@ async function confirmDeleteTenant(): Promise<void> {
       </div>
     </section>
 
-    <CentralTenantCreateModal v-model:open="createModalOpen" @saved="loadTenants" />
+    <CentralTenantCreateModal v-model:open="createModalOpen" @saved="onTenantSaved" />
     <CentralTenantEditModal
       v-model:open="editModalOpen"
       :tenant="selectedTenant"
       :initial-tab="editInitialTab"
-      @saved="loadTenants"
+      @saved="onTenantSaved"
     />
 
     <Teleport to="body">

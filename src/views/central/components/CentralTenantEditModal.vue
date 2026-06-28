@@ -1,17 +1,18 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, provide, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { tenantLogoPublicUrl, tenantService } from '@/services/tenant.service'
-import type { CentralTenant, TenantServiceType } from '@/types/tenant'
+import type { CentralTenant, TenantProvisionProgress, TenantServiceType } from '@/types/tenant'
 import { TENANT_SERVICE_TYPE_OPTIONS } from '@/types/tenant'
 import { centralAuditRouteForTenant } from '@/utils/central-audit-navigation'
 import { CENTRAL_TENANT_FIELD_HELP } from '@/utils/central-form-help'
 import CentralFormLabel from '@/views/central/components/CentralFormLabel.vue'
 import CentralFormRequiredLegend from '@/views/central/components/CentralFormRequiredLegend.vue'
+import CentralProvisionProgressRing from '@/views/central/components/CentralProvisionProgressRing.vue'
 import CentralTenantUsersPanel from '@/views/central/components/CentralTenantUsersPanel.vue'
 
-type EditTenantTab = 'info' | 'config'
+type EditTenantTab = 'info' | 'services' | 'users'
 
 const open = defineModel<boolean>('open', { default: false })
 
@@ -20,9 +21,17 @@ const props = defineProps<{
   initialTab?: EditTenantTab
 }>()
 
+const loadedTenant = ref<CentralTenant | null>(null)
+const loadingTenant = ref(false)
+
+const tenant = computed(() => loadedTenant.value ?? props.tenant)
+
 const emit = defineEmits<{
   saved: []
 }>()
+
+const activeHelpKey = ref<string | null>(null)
+provide('centralFieldHelpGroup', activeHelpKey)
 
 const router = useRouter()
 
@@ -52,6 +61,27 @@ const databaseSuccessMessage = ref<string | null>(null)
 const databaseError = ref<string | null>(null)
 const buildDatabaseConfirmOpen = ref(false)
 const dropDatabaseConfirmOpen = ref(false)
+const provisionProgress = ref<TenantProvisionProgress | null>(null)
+
+const provisionPhaseLabel = computed(() => {
+  const phase = provisionProgress.value?.phase
+  if (phase === 'database') return 'BD'
+  if (phase === 'migrations') return 'Migrando'
+  if (phase === 'seed') return 'Seed'
+  if (phase === 'done') return 'Listo'
+  return 'Inicio'
+})
+
+const provisionStepLabel = computed(() => {
+  const progress = provisionProgress.value
+  if (!progress || progress.total <= 0) {
+    return null
+  }
+
+  return `${progress.current} / ${progress.total}`
+})
+
+const provisionFileLabel = computed(() => provisionProgress.value?.file ?? null)
 
 const isWidePanel = computed(() => true)
 
@@ -122,7 +152,7 @@ function onDeleteServiceType(value: TenantServiceType): void {
 }
 
 const tenantInitials = computed(() => {
-  const name = form.name.trim() || props.tenant?.name || ''
+  const name = form.name.trim() || tenant.value?.name || ''
   if (!name) {
     return '?'
   }
@@ -132,15 +162,15 @@ const tenantInitials = computed(() => {
 })
 
 const existingLogoUrl = computed(() => {
-  if (!props.tenant?.has_logo || removeLogo.value) {
+  if (!tenant.value?.has_logo || removeLogo.value) {
     return null
   }
 
-  const version = props.tenant.updated_at
-    ? new Date(props.tenant.updated_at).getTime()
+  const version = tenant.value.updated_at
+    ? new Date(tenant.value.updated_at).getTime()
     : 0
 
-  return tenantLogoPublicUrl(props.tenant.slug, version)
+  return tenantLogoPublicUrl(tenant.value.slug, version)
 })
 
 const displayedLogo = computed(() => {
@@ -162,7 +192,7 @@ const logoHint = computed(() => {
     return 'El logo se eliminará al guardar.'
   }
 
-  if (props.tenant?.has_logo) {
+  if (tenant.value?.has_logo) {
     return 'Puede reemplazar el logo actual o eliminarlo.'
   }
 
@@ -233,13 +263,30 @@ function tenantServiceTypes(tenant: CentralTenant): TenantServiceType[] {
 function setActiveTab(tab: EditTenantTab): void {
   activeTab.value = tab
 
-  if (tab === 'config') {
+  if (tab === 'services') {
     void loadDatabaseStatus()
   }
 }
 
+async function refreshTenantDetails(): Promise<void> {
+  const tenantId = props.tenant?.id
+  if (!tenantId) {
+    loadedTenant.value = null
+    return
+  }
+
+  loadingTenant.value = true
+  try {
+    loadedTenant.value = await tenantService.fetchCentralById(tenantId)
+  } catch {
+    loadedTenant.value = props.tenant
+  } finally {
+    loadingTenant.value = false
+  }
+}
+
 async function loadDatabaseStatus(): Promise<void> {
-  if (!props.tenant) {
+  if (!tenant.value) {
     return
   }
 
@@ -247,7 +294,7 @@ async function loadDatabaseStatus(): Promise<void> {
   databaseError.value = null
 
   try {
-    const status = await tenantService.fetchCentralDatabaseStatus(props.tenant.id)
+    const status = await tenantService.fetchCentralDatabaseStatus(tenant.value.id)
     databaseExists.value = status.database_exists
   } catch (err) {
     if (axios.isAxiosError(err)) {
@@ -273,6 +320,7 @@ function closeBuildDatabaseConfirm(): void {
   }
 
   buildDatabaseConfirmOpen.value = false
+  provisionProgress.value = null
 }
 
 function openDropDatabaseConfirm(): void {
@@ -289,21 +337,46 @@ function closeDropDatabaseConfirm(): void {
 }
 
 async function confirmBuildDatabase(): Promise<void> {
-  if (!props.tenant) {
+  if (!tenant.value) {
     return
   }
 
   databaseActionLoading.value = true
   databaseError.value = null
   databaseSuccessMessage.value = null
+  provisionProgress.value = {
+    status: 'running',
+    phase: 'starting',
+    current: 0,
+    total: 0,
+    file: null,
+    percent: 0,
+    message: 'Iniciando provisión del tenant RRHH…',
+    error: null,
+  }
 
   try {
-    const response = await tenantService.provisionCentralDatabase(props.tenant.id, {
-      service_type: 'rrhh',
+    const result = await tenantService.provisionCentralDatabaseWithProgress(tenant.value.id, {
+      seed: true,
+      onProgress: (progress) => {
+        provisionProgress.value = progress
+      },
     })
-    databaseSuccessMessage.value = response.message
-    databaseExists.value = response.provision.database_exists ?? true
+
+    if (result.progress.status === 'failed') {
+      databaseError.value = result.message ?? result.progress.error ?? 'No se pudo construir la base de datos.'
+      return
+    }
+
+    databaseSuccessMessage.value = result.message ?? 'Tenant RRHH creado correctamente.'
+    databaseExists.value = result.database_exists ?? true
     buildDatabaseConfirmOpen.value = false
+    provisionProgress.value = null
+    if (result.tenant) {
+      loadedTenant.value = result.tenant
+    } else {
+      await refreshTenantDetails()
+    }
     emit('saved')
   } catch (err) {
     if (axios.isAxiosError(err)) {
@@ -312,14 +385,14 @@ async function confirmBuildDatabase(): Promise<void> {
       return
     }
 
-    databaseError.value = 'Error de conexión con el servidor.'
+    databaseError.value = err instanceof Error ? err.message : 'Error de conexión con el servidor.'
   } finally {
     databaseActionLoading.value = false
   }
 }
 
 async function confirmDropDatabase(): Promise<void> {
-  if (!props.tenant) {
+  if (!tenant.value) {
     return
   }
 
@@ -328,12 +401,14 @@ async function confirmDropDatabase(): Promise<void> {
   databaseSuccessMessage.value = null
 
   try {
-    const response = await tenantService.dropCentralDatabase(props.tenant.id, {
+    const response = await tenantService.dropCentralDatabase(tenant.value.id, {
       service_type: 'rrhh',
     })
     databaseSuccessMessage.value = response.message
     databaseExists.value = response.deletion.database_exists
     dropDatabaseConfirmOpen.value = false
+    loadedTenant.value = response.tenant
+    resetForm()
     emit('saved')
   } catch (err) {
     if (axios.isAxiosError(err)) {
@@ -355,21 +430,23 @@ function primaryDomainOf(tenant: CentralTenant): string {
 }
 
 function resetForm(): void {
-  if (!props.tenant) {
+  const current = tenant.value
+  if (!current) {
     return
   }
 
-  form.name = props.tenant.name
-  form.slug = props.tenant.slug
-  form.status = props.tenant.status
-  form.domain = primaryDomainOf(props.tenant)
-  form.serviceTypes = tenantServiceTypes(props.tenant)
+  form.name = current.name
+  form.slug = current.slug
+  form.status = current.status
+  form.domain = primaryDomainOf(current)
+  form.serviceTypes = tenantServiceTypes(current)
   error.value = null
   fieldErrors.value = {}
   databaseSuccessMessage.value = null
   databaseError.value = null
   buildDatabaseConfirmOpen.value = false
   dropDatabaseConfirmOpen.value = false
+  provisionProgress.value = null
   resetLogoState()
 }
 
@@ -378,14 +455,14 @@ function close(): void {
 }
 
 function openAuditHistory(): void {
-  if (!props.tenant) {
+  if (!tenant.value) {
     return
   }
 
   close()
   void router.push(centralAuditRouteForTenant({
-    id: props.tenant.id,
-    name: props.tenant.name,
+    id: tenant.value.id,
+    name: tenant.value.name,
   }))
 }
 
@@ -405,7 +482,7 @@ function applyApiErrors(errors?: Record<string, string[]>): void {
 }
 
 async function handleSubmit(): Promise<void> {
-  if (!props.tenant) {
+  if (!tenant.value) {
     return
   }
 
@@ -414,8 +491,8 @@ async function handleSubmit(): Promise<void> {
   fieldErrors.value = {}
 
   try {
-    await tenantService.updateCentral(
-      props.tenant.id,
+    const response = await tenantService.updateCentral(
+      tenant.value.id,
       {
         name: form.name.trim(),
         slug: form.slug.trim().toLowerCase(),
@@ -429,6 +506,7 @@ async function handleSubmit(): Promise<void> {
       },
     )
 
+    loadedTenant.value = response.tenant
     emit('saved')
     close()
   } catch (err) {
@@ -450,15 +528,18 @@ async function handleSubmit(): Promise<void> {
 
 watch(
   () => [open.value, props.tenant?.id, props.initialTab] as const,
-  ([isOpen, , initialTab]) => {
+  async ([isOpen, , initialTab]) => {
     if (isOpen) {
       activeTab.value = initialTab ?? 'info'
+      await refreshTenantDetails()
       resetForm()
-      if ((initialTab ?? 'info') === 'config') {
+      if ((initialTab ?? 'info') === 'services') {
         void loadDatabaseStatus()
       }
     } else {
       activeTab.value = 'info'
+      activeHelpKey.value = null
+      loadedTenant.value = null
       resetLogoState()
     }
   },
@@ -482,7 +563,7 @@ watch(
         </header>
 
         <div class="modal-logo-section">
-          <CentralFormLabel optional :help="CENTRAL_TENANT_FIELD_HELP.logo">
+          <CentralFormLabel optional help-trigger="dblclick" :help="CENTRAL_TENANT_FIELD_HELP.logo">
             Logo del cliente
           </CentralFormLabel>
           <div class="logo-row">
@@ -563,11 +644,21 @@ watch(
             type="button"
             role="tab"
             class="modal-tab"
-            :class="{ 'modal-tab-active': activeTab === 'config' }"
-            :aria-selected="activeTab === 'config'"
-            @click="setActiveTab('config')"
+            :class="{ 'modal-tab-active': activeTab === 'services' }"
+            :aria-selected="activeTab === 'services'"
+            @click="setActiveTab('services')"
           >
-            Usuarios y servicios
+            Tipos de servicios
+          </button>
+          <button
+            type="button"
+            role="tab"
+            class="modal-tab"
+            :class="{ 'modal-tab-active': activeTab === 'users' }"
+            :aria-selected="activeTab === 'users'"
+            @click="setActiveTab('users')"
+          >
+            Usuarios
           </button>
         </nav>
 
@@ -582,7 +673,7 @@ watch(
           <div class="form-grid">
             <div class="form-grid-row form-grid-row-3">
               <div class="field-block">
-                <CentralFormLabel for="tenant-name" required :help="CENTRAL_TENANT_FIELD_HELP.name">
+                <CentralFormLabel for="tenant-name" required help-trigger="dblclick" :help="CENTRAL_TENANT_FIELD_HELP.name">
                   Nombre
                 </CentralFormLabel>
                 <input id="tenant-name" v-model="form.name" type="text" required class="input-field" />
@@ -590,7 +681,7 @@ watch(
               </div>
 
               <div class="field-block">
-                <CentralFormLabel for="tenant-slug" required :help="CENTRAL_TENANT_FIELD_HELP.slug">
+                <CentralFormLabel for="tenant-slug" required help-trigger="dblclick" :help="CENTRAL_TENANT_FIELD_HELP.slug">
                   Sigla (slug)
                 </CentralFormLabel>
                 <input
@@ -605,7 +696,7 @@ watch(
               </div>
 
               <div class="field-block">
-                <CentralFormLabel for="tenant-status" required :help="CENTRAL_TENANT_FIELD_HELP.status">
+                <CentralFormLabel for="tenant-status" required help-trigger="dblclick" :help="CENTRAL_TENANT_FIELD_HELP.status">
                   Estado
                 </CentralFormLabel>
                 <select id="tenant-status" v-model="form.status" class="input-field">
@@ -618,7 +709,7 @@ watch(
 
             <div class="form-grid-row form-grid-row-2">
               <div class="field-block">
-                <CentralFormLabel for="tenant-domain" required :help="CENTRAL_TENANT_FIELD_HELP.domain">
+                <CentralFormLabel for="tenant-domain" required help-trigger="dblclick" :help="CENTRAL_TENANT_FIELD_HELP.domain">
                   Dominio principal
                 </CentralFormLabel>
                 <input id="tenant-domain" v-model="form.domain" type="text" required class="input-field" />
@@ -626,7 +717,7 @@ watch(
               </div>
 
               <div class="field-block">
-                <CentralFormLabel for="tenant-database" :help="CENTRAL_TENANT_FIELD_HELP.database">
+                <CentralFormLabel for="tenant-database" help-trigger="dblclick" :help="CENTRAL_TENANT_FIELD_HELP.database">
                   Base de datos
                 </CentralFormLabel>
                 <input
@@ -644,9 +735,9 @@ watch(
           <p v-if="error" class="alert-error">{{ error }}</p>
         </div>
 
-        <div v-show="activeTab === 'config'" class="modal-body space-y-5" role="tabpanel">
+        <div v-show="activeTab === 'services'" class="modal-body space-y-5" role="tabpanel">
           <section class="config-section">
-            <CentralFormLabel :help="CENTRAL_TENANT_FIELD_HELP.serviceTypes">
+            <CentralFormLabel help-trigger="dblclick" :help="CENTRAL_TENANT_FIELD_HELP.serviceTypes">
               Tipos de servicios
             </CentralFormLabel>
 
@@ -725,12 +816,16 @@ watch(
             <p v-if="databaseError" class="alert-error">{{ databaseError }}</p>
           </section>
 
+          <p v-if="error" class="alert-error">{{ error }}</p>
+        </div>
+
+        <div v-show="activeTab === 'users'" class="modal-body space-y-5" role="tabpanel">
           <section class="config-section">
             <h3 class="config-section-title">Usuarios del cliente</h3>
             <p class="field-hint section-hint">
               Asocie usuarios activos de la plataforma central a este cliente. Los cambios se aplican de inmediato.
             </p>
-            <CentralTenantUsersPanel :tenant="tenant" :active="open && activeTab === 'config'" />
+            <CentralTenantUsersPanel :tenant="tenant" :active="open && activeTab === 'users'" />
           </section>
 
           <p v-if="error" class="alert-error">{{ error }}</p>
@@ -775,18 +870,31 @@ watch(
         </header>
 
         <div class="modal-body space-y-3 text-sm text-slate-700">
-          <p>
-            Se creará el tenant operacional <strong>RRHH</strong> del cliente
-            <strong>{{ tenant.name }}</strong> en la base de datos
-            <code class="mono">{{ tenant.database }}</code>
-            y se aplicarán las migraciones correspondientes.
-          </p>
-          <p class="text-brand-700">
-            Esta operación puede tardar varios minutos. No elimina el registro del cliente en SoftDIN Central.
-          </p>
-          <p v-if="databaseExists" class="text-amber-700">
-            El tenant RRHH ya existe: se volverán a aplicar las migraciones pendientes.
-          </p>
+          <template v-if="databaseActionLoading && provisionProgress">
+            <CentralProvisionProgressRing
+              :percent="provisionProgress.percent"
+              :label="provisionPhaseLabel"
+            />
+            <p class="provision-status-message">{{ provisionProgress.message }}</p>
+            <p v-if="provisionStepLabel" class="provision-step-count">{{ provisionStepLabel }}</p>
+            <p v-if="provisionFileLabel" class="provision-current-file" :title="provisionFileLabel">
+              {{ provisionFileLabel }}
+            </p>
+          </template>
+          <template v-else>
+            <p>
+              Se creará el tenant operacional <strong>RRHH</strong> del cliente
+              <strong>{{ tenant.name }}</strong> en la base de datos
+              <code class="mono">{{ tenant.database }}</code>
+              y se aplicarán las migraciones correspondientes.
+            </p>
+            <p class="text-brand-700">
+              Esta operación puede tardar varios minutos. No elimina el registro del cliente en SoftDIN Central.
+            </p>
+            <p v-if="databaseExists" class="text-amber-700">
+              El tenant RRHH ya existe: se volverán a aplicar las migraciones pendientes.
+            </p>
+          </template>
         </div>
 
         <footer class="modal-footer">
@@ -799,12 +907,12 @@ watch(
             Cancelar
           </button>
           <button
+            v-if="!databaseActionLoading"
             type="button"
             class="btn-primary"
-            :disabled="databaseActionLoading"
             @click="confirmBuildDatabase"
           >
-            {{ databaseActionLoading ? 'Creando…' : 'Sí, crear tenant' }}
+            Sí, crear tenant
           </button>
         </footer>
       </div>
@@ -1128,6 +1236,36 @@ watch(
 .modal-panel-confirm {
   max-width: 32rem;
   border: 1px solid #bbf7d0;
+}
+
+.provision-status-message {
+  margin: 0;
+  text-align: center;
+  font-weight: 500;
+  color: rgb(51 65 85);
+}
+
+.provision-step-count {
+  margin: 0;
+  text-align: center;
+  font-size: 0.8125rem;
+  color: rgb(100 116 139);
+}
+
+.provision-current-file {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  background: rgb(248 250 252);
+  border: 1px solid rgb(226 232 240);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  color: rgb(71 85 105);
+  word-break: break-all;
+  text-align: center;
+  max-height: 4.5rem;
+  overflow: auto;
 }
 
 .modal-panel-danger {
