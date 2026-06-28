@@ -190,12 +190,14 @@ export interface CentralTenantsResponse {
   data: CentralTenant[]
 }
 
-export const TENANT_SERVICE_TYPE_OPTIONS = [
-  { value: 'rrhh', label: 'RRHH', provisionable: true },
-  { value: 'sgi', label: 'SGI', provisionable: false, comingSoon: true },
-] as const satisfies ReadonlyArray<{
+export interface TenantServiceTypeOption {
   value: TenantServiceType
   label: string
   provisionable: boolean
   comingSoon?: boolean
-}>
+}
+
+export const TENANT_SERVICE_TYPE_OPTIONS: readonly TenantServiceTypeOption[] = [
+  { value: 'rrhh', label: 'RRHH', provisionable: true },
+  { value: 'sgi', label: 'SGI', provisionable: false, comingSoon: true },
+]
