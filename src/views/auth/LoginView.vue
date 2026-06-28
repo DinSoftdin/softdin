@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import AuthBrandHeader from '@/components/auth/AuthBrandHeader.vue'
+import PasswordInput from '@/components/forms/PasswordInput.vue'
 import { authService } from '@/services/auth.service'
 import { tenantLogoPublicUrl } from '@/services/tenant.service'
 import { useAuthStore } from '@/stores/auth.store'
@@ -239,13 +240,11 @@ const selectedTenantLogoUrl = computed(() => {
           <label for="password" class="mb-1 block text-sm font-medium text-slate-700">
             Contraseña
           </label>
-          <input
+          <PasswordInput
             id="password"
             v-model="form.password"
-            type="password"
             required
             autocomplete="current-password"
-            class="input-field"
           />
         </div>
 

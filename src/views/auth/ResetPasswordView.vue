@@ -3,6 +3,7 @@ import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import AuthShell from '@/components/auth/AuthShell.vue'
+import PasswordInput from '@/components/forms/PasswordInput.vue'
 import { authService } from '@/services/auth.service'
 
 const router = useRouter()
@@ -80,27 +81,23 @@ async function handleSubmit(): Promise<void> {
 
       <div>
         <label for="password" class="label">Nueva contraseña</label>
-        <input
+        <PasswordInput
           id="password"
           v-model="form.password"
-          type="password"
           required
           minlength="8"
           autocomplete="new-password"
-          class="input-field"
         />
       </div>
 
       <div>
         <label for="passwordConfirmation" class="label">Confirmar contraseña</label>
-        <input
+        <PasswordInput
           id="passwordConfirmation"
           v-model="form.passwordConfirmation"
-          type="password"
           required
           minlength="8"
           autocomplete="new-password"
-          class="input-field"
         />
       </div>
 

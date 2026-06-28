@@ -8,6 +8,23 @@ export const api = axios.create({
   },
 })
 
+function isPublicAuthRequest(config: { method?: string; url?: string }): boolean {
+  if (config.method?.toLowerCase() !== 'post') {
+    return false
+  }
+
+  const path = config.url ?? ''
+
+  return (
+    path.includes('/auth/login')
+    || path.includes('/auth/central-login')
+    || path.includes('/auth/central-admin-login')
+    || path.includes('/auth/register')
+    || path.includes('/auth/forgot-password')
+    || path.includes('/auth/reset-password')
+  )
+}
+
 export function setupApiInterceptors(
   getToken: () => string | null,
   getTenantSlug: () => string | null,
@@ -16,8 +33,10 @@ export function setupApiInterceptors(
 ): void {
   api.interceptors.request.use((config) => {
     const token = getToken()
-    if (token) {
+    if (token && !isPublicAuthRequest(config)) {
       config.headers.Authorization = `Bearer ${token}`
+    } else {
+      delete config.headers.Authorization
     }
 
     const slug = getTenantSlug()

@@ -40,7 +40,7 @@ router.beforeEach(async (to) => {
   }
 
   if (to.meta.guest && auth.isAuthenticated) {
-    if (to.name === 'login') {
+    if (to.name === 'login' || to.name === 'login-central') {
       auth.clearSession()
       return true
     }

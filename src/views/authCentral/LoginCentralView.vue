@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import axios from 'axios'
 import AuthBrandHeader from '@/components/auth/AuthBrandHeader.vue'
+import PasswordInput from '@/components/forms/PasswordInput.vue'
 import { useAuthStore } from '@/stores/auth.store'
+import { extractAxiosErrorMessage } from '@/utils/apiError'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -38,20 +39,10 @@ async function handleSubmit(): Promise<void> {
       typeof route.query.redirect === 'string' ? route.query.redirect : '/central'
     await router.push(redirect)
   } catch (err) {
-    if (axios.isAxiosError(err)) {
-      const responseData = err.response?.data as {
-        message?: string
-        errors?: Record<string, string[]>
-      }
-      const firstFieldError = responseData?.errors
-        ? Object.values(responseData.errors).flat()[0]
-        : undefined
-      error.value =
-        firstFieldError ?? responseData?.message ?? 'No se pudo iniciar sesión en SoftDIN Central.'
-      return
-    }
-
-    error.value = 'Error de conexión con el servidor.'
+    error.value = extractAxiosErrorMessage(
+      err,
+      'No se pudo iniciar sesión en SoftDIN Central.',
+    )
   } finally {
     loggingIn.value = false
   }
@@ -88,13 +79,11 @@ async function handleSubmit(): Promise<void> {
           <label for="central-password" class="mb-1 block text-sm font-medium text-slate-700">
             Contraseña
           </label>
-          <input
+          <PasswordInput
             id="central-password"
             v-model="form.password"
-            type="password"
             required
             autocomplete="current-password"
-            class="input-field"
           />
         </div>
 

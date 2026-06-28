@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import axios from 'axios'
+import PasswordInput from '@/components/forms/PasswordInput.vue'
 import { useAuthStore } from '@/stores/auth.store'
 
 const auth = useAuthStore()
@@ -327,34 +328,28 @@ onUnmounted(() => {
 
         <div>
           <label for="currentPassword" class="label">Contraseña actual</label>
-          <input
+          <PasswordInput
             id="currentPassword"
             v-model="form.currentPassword"
-            type="password"
             autocomplete="current-password"
-            class="input"
           />
         </div>
 
         <div>
           <label for="password" class="label">Nueva contraseña</label>
-          <input
+          <PasswordInput
             id="password"
             v-model="form.password"
-            type="password"
             autocomplete="new-password"
-            class="input"
           />
         </div>
 
         <div>
           <label for="passwordConfirmation" class="label">Confirmar nueva contraseña</label>
-          <input
+          <PasswordInput
             id="passwordConfirmation"
             v-model="form.passwordConfirmation"
-            type="password"
             autocomplete="new-password"
-            class="input"
           />
         </div>
       </div>
