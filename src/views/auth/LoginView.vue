@@ -101,6 +101,18 @@ async function continueToTenant(): Promise<void> {
 
   try {
     const data = await authService.centralLogin(form.email.trim(), form.password)
+
+    if (data.central_access_available || (data.user?.is_superuser && normalizeTenants(data.tenants).length === 0)) {
+      await auth.loginCentral({
+        email: form.email.trim(),
+        password: form.password,
+      })
+
+      const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/central'
+      await router.push(redirect)
+      return
+    }
+
     const tenants = normalizeTenants(data.tenants)
 
     if (tenants.length === 0) {

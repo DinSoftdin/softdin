@@ -99,6 +99,7 @@ export interface CentralLoginResponse {
   user: User
   tenants: Tenant[]
   tenant_selection_required?: boolean
+  central_access_available?: boolean
 }
 
 export interface AuthResponse {

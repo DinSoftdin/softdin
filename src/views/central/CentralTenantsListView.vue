@@ -3,18 +3,19 @@ import { computed, onMounted, ref } from 'vue'
 import axios from 'axios'
 import CentralTenantCreateModal from '@/views/central/components/CentralTenantCreateModal.vue'
 import CentralTenantEditModal from '@/views/central/components/CentralTenantEditModal.vue'
-import CentralTenantUsersModal from '@/views/central/components/CentralTenantUsersModal.vue'
 import { tenantLogoPublicUrl, tenantService } from '@/services/tenant.service'
 import type { CentralTenant } from '@/types/tenant'
+
+type EditTenantTab = 'info' | 'config'
 
 const loading = ref(true)
 const error = ref<string | null>(null)
 const tenants = ref<CentralTenant[]>([])
 const search = ref('')
 
-const usersModalOpen = ref(false)
 const createModalOpen = ref(false)
 const editModalOpen = ref(false)
+const editInitialTab = ref<EditTenantTab>('info')
 const deleteModalOpen = ref(false)
 const selectedTenant = ref<CentralTenant | null>(null)
 const deleting = ref(false)
@@ -124,14 +125,22 @@ function openCreateModal(): void {
   createModalOpen.value = true
 }
 
-function openUsersModal(tenant: CentralTenant): void {
+function openEditModal(tenant: CentralTenant, tab: EditTenantTab = 'info'): void {
   selectedTenant.value = tenant
-  usersModalOpen.value = true
+  editInitialTab.value = tab
+  editModalOpen.value = true
 }
 
-function openEditModal(tenant: CentralTenant): void {
-  selectedTenant.value = tenant
-  editModalOpen.value = true
+function openUsersModal(tenant: CentralTenant): void {
+  openEditModal(tenant, 'config')
+}
+
+function onTenantRowDblClick(tenant: CentralTenant, event: MouseEvent): void {
+  if ((event.target as HTMLElement).closest('.actions-cell')) {
+    return
+  }
+
+  openEditModal(tenant)
 }
 
 function openDeleteModal(tenant: CentralTenant): void {
@@ -185,6 +194,7 @@ async function confirmDeleteTenant(): Promise<void> {
           <h1 class="mt-1 text-2xl font-bold text-slate-900">Clientes</h1>
           <p class="mt-2 text-sm text-slate-600">
             Listado de todos los clientes registrados en SoftDIN Central.
+            Doble clic en un cliente para abrir su formulario de edición.
           </p>
         </div>
 
@@ -241,7 +251,9 @@ async function confirmDeleteTenant(): Promise<void> {
         }}
       </div>
 
-      <div v-else class="overflow-x-auto">
+      <div v-else>
+        <p class="table-hint">Doble clic en una fila para editar el cliente.</p>
+        <div class="overflow-x-auto">
         <table class="tenants-table">
           <thead>
             <tr>
@@ -255,7 +267,15 @@ async function confirmDeleteTenant(): Promise<void> {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="tenant in filteredTenants" :key="tenant.id">
+            <tr
+              v-for="tenant in filteredTenants"
+              :key="tenant.id"
+              class="data-row"
+              tabindex="0"
+              title="Doble clic para editar"
+              @dblclick="onTenantRowDblClick(tenant, $event)"
+              @keydown.enter="openEditModal(tenant)"
+            >
               <td>
                 <div class="tenant-cell">
                   <span class="tenant-logo">
@@ -333,6 +353,7 @@ async function confirmDeleteTenant(): Promise<void> {
             </tr>
           </tbody>
         </table>
+        </div>
       </div>
 
       <div
@@ -344,8 +365,12 @@ async function confirmDeleteTenant(): Promise<void> {
     </section>
 
     <CentralTenantCreateModal v-model:open="createModalOpen" @saved="loadTenants" />
-    <CentralTenantUsersModal v-model:open="usersModalOpen" :tenant="selectedTenant" />
-    <CentralTenantEditModal v-model:open="editModalOpen" :tenant="selectedTenant" @saved="loadTenants" />
+    <CentralTenantEditModal
+      v-model:open="editModalOpen"
+      :tenant="selectedTenant"
+      :initial-tab="editInitialTab"
+      @saved="loadTenants"
+    />
 
     <Teleport to="body">
       <div v-if="deleteModalOpen && selectedTenant" class="modal-backdrop" @click.self="closeDeleteModal">
@@ -492,6 +517,17 @@ async function confirmDeleteTenant(): Promise<void> {
   border-bottom: 1px solid #f1f5f9;
   padding: 0.875rem 1rem;
   vertical-align: middle;
+}
+
+.table-hint {
+  margin: 0;
+  padding: 0.75rem 1rem 0;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.data-row {
+  cursor: pointer;
 }
 
 .tenants-table tbody tr:hover {

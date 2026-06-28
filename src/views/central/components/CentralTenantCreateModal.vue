@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, provide, reactive, ref, watch } from 'vue'
 import axios from 'axios'
 import { tenantService } from '@/services/tenant.service'
+import { CENTRAL_TENANT_FIELD_HELP } from '@/utils/central-form-help'
+import CentralFormLabel from '@/views/central/components/CentralFormLabel.vue'
+import CentralFormRequiredLegend from '@/views/central/components/CentralFormRequiredLegend.vue'
 
 const open = defineModel<boolean>('open', { default: false })
 
@@ -22,8 +25,10 @@ const form = reactive({
   slug: '',
   domain: '',
   database: '',
-  owner_email: '',
 })
+
+const activeHelpKey = ref<string | null>(null)
+provide('centralFieldHelpGroup', activeHelpKey)
 
 const tenantInitials = computed(() => {
   const name = form.name.trim()
@@ -116,21 +121,11 @@ function normalizeSlug(value: string): string {
     .replace(/^-|-$/g, '')
 }
 
-function slugFromName(name: string): string {
-  return normalizeSlug(
-    name
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/\s+/g, '-'),
-  )
-}
-
 function resetForm(): void {
   form.name = ''
   form.slug = ''
   form.domain = ''
   form.database = ''
-  form.owner_email = ''
   error.value = null
   successMessage.value = null
   fieldErrors.value = {}
@@ -166,11 +161,10 @@ async function handleSubmit(): Promise<void> {
   const payload = {
     name: form.name.trim(),
     slug,
-    migrate: true,
-    seed: true,
+    migrate: false,
+    seed: false,
     ...(form.domain.trim() ? { domain: form.domain.trim() } : {}),
     ...(form.database.trim() ? { database: form.database.trim() } : {}),
-    ...(form.owner_email.trim() ? { owner_email: form.owner_email.trim().toLowerCase() } : {}),
   }
 
   try {
@@ -181,18 +175,17 @@ async function handleSubmit(): Promise<void> {
 
     successMessage.value = [
       response.message,
-      provision.database_created ? `Base de datos «${provision.database}» creada.` : null,
+      !provision.database_created
+        ? `Base de datos planificada: «${provision.database}» (aún no creada).`
+        : `Base de datos «${provision.database}» creada.`,
       provision.migrated ? 'Migraciones aplicadas.' : null,
       provision.seeded ? 'Datos maestros cargados (seed).' : null,
+      !provision.database_created && !provision.migrated && !provision.seeded
+        ? 'La base de datos, migraciones y seed deberán ejecutarse manualmente cuando corresponda.'
+        : null,
     ].filter(Boolean).join(' ')
 
     emit('saved')
-
-    if (!provision.seeded) {
-      error.value = 'El cliente se creó, pero no se confirmó la carga de datos maestros (seed).'
-      return
-    }
-
     close()
   } catch (err) {
     if (axios.isAxiosError(err)) {
@@ -214,31 +207,26 @@ async function handleSubmit(): Promise<void> {
 watch(
   () => open.value,
   (isOpen) => {
+    document.body.style.overflow = isOpen ? 'hidden' : ''
+
     if (isOpen) {
       resetForm()
     } else {
+      activeHelpKey.value = null
       resetLogoState()
     }
   },
 )
 
-watch(
-  () => form.name,
-  (name, previous) => {
-    if (!open.value || form.slug.trim() !== '') {
-      return
-    }
-
-    if (previous === '' && name.trim() !== '') {
-      form.slug = slugFromName(name)
-    }
-  },
-)
+onBeforeUnmount(() => {
+  document.body.style.overflow = ''
+  resetLogoState()
+})
 </script>
 
 <template>
   <Teleport to="body">
-    <div v-if="open" class="modal-backdrop" @click.self="!saving && close()">
+    <div v-if="open" class="modal-backdrop">
       <form class="modal-panel" @submit.prevent="handleSubmit">
         <header class="modal-header">
           <div>
@@ -251,14 +239,19 @@ watch(
         </header>
 
         <div class="modal-body space-y-4">
-          <p class="field-hint intro">
-            Se registrará el cliente en SoftDIN Central, se creará su base de datos, se aplicarán las
-            migraciones y se cargarán los datos maestros iniciales (seed). Este proceso puede tardar
-            varios minutos.
+          <CentralFormRequiredLegend />
+
+          <p class="form-recommendation">
+            Doble clic en el icono
+            <span class="form-recommendation-icon" aria-hidden="true">ℹ</span>
+            de cada campo para ver su descripción; al alejar el mouse se oculta.
+            El nombre y la sigla son independientes.
           </p>
 
           <div>
-            <p class="label">Logo del cliente</p>
+            <CentralFormLabel optional help-trigger="dblclick" :help="CENTRAL_TENANT_FIELD_HELP.logo">
+              Logo del cliente
+            </CentralFormLabel>
             <div class="logo-row">
               <span class="logo-preview">
                 <img
@@ -309,7 +302,14 @@ watch(
           </div>
 
           <div>
-            <label for="create-tenant-name" class="label">Nombre</label>
+            <CentralFormLabel
+              for="create-tenant-name"
+              required
+              help-trigger="dblclick"
+              :help="CENTRAL_TENANT_FIELD_HELP.name"
+            >
+              Nombre
+            </CentralFormLabel>
             <input
               id="create-tenant-name"
               v-model="form.name"
@@ -322,7 +322,14 @@ watch(
           </div>
 
           <div>
-            <label for="create-tenant-slug" class="label">Sigla (slug)</label>
+            <CentralFormLabel
+              for="create-tenant-slug"
+              required
+              help-trigger="dblclick"
+              :help="CENTRAL_TENANT_FIELD_HELP.slug"
+            >
+              Sigla (slug)
+            </CentralFormLabel>
             <input
               id="create-tenant-slug"
               v-model="form.slug"
@@ -334,12 +341,19 @@ watch(
             />
             <p v-if="fieldErrors.slug" class="field-error">{{ fieldErrors.slug }}</p>
             <p v-else-if="suggestedDatabase" class="field-hint">
-              Base de datos sugerida: <code class="mono">{{ suggestedDatabase }}</code>
+              Base de datos sugerida: <code class="mono">{{ suggestedDatabase }}</code>.
             </p>
           </div>
 
           <div>
-            <label for="create-tenant-domain" class="label">Dominio principal (opcional)</label>
+            <CentralFormLabel
+              for="create-tenant-domain"
+              optional
+              help-trigger="dblclick"
+              :help="CENTRAL_TENANT_FIELD_HELP.domain"
+            >
+              Dominio principal
+            </CentralFormLabel>
             <input
               id="create-tenant-domain"
               v-model="form.domain"
@@ -356,7 +370,14 @@ watch(
           </div>
 
           <div>
-            <label for="create-tenant-database" class="label">Base de datos (opcional)</label>
+            <CentralFormLabel
+              for="create-tenant-database"
+              optional
+              help-trigger="dblclick"
+              :help="CENTRAL_TENANT_FIELD_HELP.database"
+            >
+              Base de datos
+            </CentralFormLabel>
             <input
               id="create-tenant-database"
               v-model="form.database"
@@ -367,25 +388,6 @@ watch(
               :disabled="saving"
             />
             <p v-if="fieldErrors.database" class="field-error">{{ fieldErrors.database }}</p>
-            <p v-else class="field-hint">
-              Si lo deja vacío, se generará automáticamente según la sigla.
-            </p>
-          </div>
-
-          <div>
-            <label for="create-tenant-owner" class="label">Correo del propietario (opcional)</label>
-            <input
-              id="create-tenant-owner"
-              v-model="form.owner_email"
-              type="email"
-              class="input-field"
-              placeholder="admin@empresa.com"
-              :disabled="saving"
-            />
-            <p v-if="fieldErrors.owner_email" class="field-error">{{ fieldErrors.owner_email }}</p>
-            <p v-else class="field-hint">
-              Usuario central existente que quedará asociado como propietario del cliente.
-            </p>
           </div>
 
           <p v-if="successMessage" class="alert-success">{{ successMessage }}</p>
@@ -409,7 +411,7 @@ watch(
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 100;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -418,6 +420,8 @@ watch(
 }
 
 .modal-panel {
+  position: relative;
+  z-index: 101;
   width: 100%;
   max-width: 32rem;
   max-height: calc(100vh - 2rem);
@@ -519,9 +523,28 @@ watch(
   color: #64748b;
 }
 
-.field-hint.intro {
-  margin-top: 0;
+.form-recommendation {
+  margin: 0;
+  border-radius: 0.5rem;
+  background: #f8fafc;
+  padding: 0.625rem 0.75rem;
+  font-size: 0.8125rem;
   line-height: 1.5;
+  color: #475569;
+}
+
+.form-recommendation-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 9999px;
+  background: #e2e8f0;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #64748b;
+  vertical-align: middle;
 }
 
 .mono {

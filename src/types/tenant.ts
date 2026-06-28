@@ -32,7 +32,7 @@ export interface TenantAvailableUsersResponse {
 
 export interface AttachCentralTenantUserPayload {
   user_id: number
-  role: string
+  role?: string
 }
 
 export interface AttachCentralTenantUserResponse {
@@ -77,11 +77,18 @@ export interface CreateCentralTenantResponse {
   }
 }
 
+export type TenantServiceType = 'rrhh' | 'sgi'
+
+export interface CentralTenantData {
+  service_types?: TenantServiceType[]
+}
+
 export interface UpdateCentralTenantPayload {
   name: string
   slug: string
   status: string
   domain: string
+  service_types?: TenantServiceType[]
 }
 
 export interface UpdateCentralTenantResponse {
@@ -98,6 +105,35 @@ export interface DeleteCentralTenantResponse {
   }
 }
 
+export interface TenantDatabaseStatusResponse {
+  database: string
+  database_exists: boolean
+  database_created: boolean
+  provisioned_at?: string | null
+}
+
+export interface TenantDatabaseProvisionResponse {
+  message: string
+  provision: {
+    database: string
+    database_created: boolean
+    migrated: boolean
+    seeded: boolean
+    database_exists?: boolean
+  }
+  tenant: CentralTenant
+}
+
+export interface TenantDatabaseDropResponse {
+  message: string
+  deletion: {
+    database: string
+    database_dropped: boolean
+    database_exists: boolean
+  }
+  tenant: CentralTenant
+}
+
 export interface CentralTenant {
   id: string
   name: string
@@ -106,6 +142,7 @@ export interface CentralTenant {
   status: string
   has_logo?: boolean
   users_count?: number
+  data?: CentralTenantData | null
   domains?: TenantDomain[]
   created_at?: string | null
   updated_at?: string | null
@@ -114,3 +151,13 @@ export interface CentralTenant {
 export interface CentralTenantsResponse {
   data: CentralTenant[]
 }
+
+export const TENANT_SERVICE_TYPE_OPTIONS = [
+  { value: 'rrhh', label: 'RRHH', provisionable: true },
+  { value: 'sgi', label: 'SGI', provisionable: false, comingSoon: true },
+] as const satisfies ReadonlyArray<{
+  value: TenantServiceType
+  label: string
+  provisionable: boolean
+  comingSoon?: boolean
+}>

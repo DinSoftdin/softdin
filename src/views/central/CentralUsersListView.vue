@@ -38,22 +38,34 @@ const filteredUsers = computed(() => {
 const stats = computed(() => ({
   total: users.value.length,
   active: users.value.filter((user) => user.state).length,
+  pendingActivation: users.value.filter((user) => user.pending_activation).length,
+  clientAdmins: users.value.filter((user) => user.is_admin).length,
   superusers: users.value.filter((user) => user.is_superuser).length,
 }))
 
 function userTypeLabel(user: CentralUser): string {
+  const roles: string[] = []
+
   if (user.is_superuser) {
-    return 'Superusuario'
+    roles.push('Super-Usuario')
   }
 
   if (user.is_admin) {
-    return 'Admin cliente'
+    roles.push('Admin cliente')
   }
 
-  return 'Usuario'
+  if (roles.length === 0) {
+    return ''
+  }
+
+  return roles.join(' · ')
 }
 
 function userTypeClass(user: CentralUser): string {
+  if (user.is_superuser && user.is_admin) {
+    return 'type-superuser-admin'
+  }
+
   if (user.is_superuser) {
     return 'type-superuser'
   }
@@ -117,6 +129,14 @@ function openEditModal(user: CentralUser): void {
   formUser.value = user
   formModalKey.value += 1
   formModalOpen.value = true
+}
+
+function onUserRowDblClick(user: CentralUser, event: MouseEvent): void {
+  if ((event.target as HTMLElement).closest('.actions-cell')) {
+    return
+  }
+
+  openEditModal(user)
 }
 
 function onFormModalOpenChange(isOpen: boolean): void {
@@ -191,6 +211,7 @@ async function confirmDeleteUser(): Promise<void> {
           <h1 class="mt-1 text-2xl font-bold text-slate-900">Usuarios</h1>
           <p class="mt-2 text-sm text-slate-600">
             Usuarios registrados en la base central (softdin_central).
+            Doble clic en un usuario para abrir su formulario de edición.
           </p>
         </div>
 
@@ -204,7 +225,7 @@ async function confirmDeleteUser(): Promise<void> {
         </div>
       </div>
 
-      <div class="mt-6 grid gap-3 sm:grid-cols-3">
+      <div class="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <div class="stat-card">
           <p class="stat-label">Total usuarios</p>
           <p class="stat-value">{{ stats.total }}</p>
@@ -214,7 +235,15 @@ async function confirmDeleteUser(): Promise<void> {
           <p class="stat-value">{{ stats.active }}</p>
         </div>
         <div class="stat-card">
-          <p class="stat-label">Superusuarios</p>
+          <p class="stat-label">Pendientes por activación</p>
+          <p class="stat-value">{{ stats.pendingActivation }}</p>
+        </div>
+        <div class="stat-card">
+          <p class="stat-label">Admon de cliente</p>
+          <p class="stat-value">{{ stats.clientAdmins }}</p>
+        </div>
+        <div class="stat-card">
+          <p class="stat-label">Super-Usuarios</p>
           <p class="stat-value">{{ stats.superusers }}</p>
         </div>
       </div>
@@ -251,7 +280,9 @@ async function confirmDeleteUser(): Promise<void> {
         }}
       </div>
 
-      <div v-else class="overflow-x-auto">
+      <div v-else>
+        <p class="table-hint">Doble clic en una fila para editar el usuario.</p>
+        <div class="overflow-x-auto">
         <table class="users-table">
           <thead>
             <tr>
@@ -264,7 +295,15 @@ async function confirmDeleteUser(): Promise<void> {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="user in filteredUsers" :key="user.id">
+            <tr
+              v-for="user in filteredUsers"
+              :key="user.id"
+              class="data-row"
+              tabindex="0"
+              title="Doble clic para editar"
+              @dblclick="onUserRowDblClick(user, $event)"
+              @keydown.enter="openEditModal(user)"
+            >
               <td>
                 <div class="user-cell">
                   <CentralUserAvatar
@@ -278,7 +317,11 @@ async function confirmDeleteUser(): Promise<void> {
               </td>
               <td>{{ user.email }}</td>
               <td>
-                <span class="type-badge" :class="userTypeClass(user)">
+                <span
+                  v-if="userTypeLabel(user)"
+                  class="type-badge"
+                  :class="userTypeClass(user)"
+                >
                   {{ userTypeLabel(user) }}
                 </span>
               </td>
@@ -338,6 +381,7 @@ async function confirmDeleteUser(): Promise<void> {
             </tr>
           </tbody>
         </table>
+        </div>
       </div>
 
       <div
@@ -496,6 +540,17 @@ async function confirmDeleteUser(): Promise<void> {
   padding: 0.75rem 1rem;
 }
 
+.table-hint {
+  margin: 0;
+  padding: 0.75rem 1rem 0;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.data-row {
+  cursor: pointer;
+}
+
 .users-table tbody tr:hover {
   background: #f8fafc;
 }
@@ -517,6 +572,11 @@ async function confirmDeleteUser(): Promise<void> {
 .type-superuser {
   background: #e0e7ff;
   color: #3730a3;
+}
+
+.type-superuser-admin {
+  background: linear-gradient(90deg, #e0e7ff 0%, #dbeafe 100%);
+  color: #312e81;
 }
 
 .type-admin {

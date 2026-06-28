@@ -49,12 +49,18 @@ function resultLabel(result: string): string {
   <article class="feed-card">
     <header class="feed-header">
       <h3 class="feed-title">Actividad reciente</h3>
-      <p class="feed-subtitle">Últimos eventos registrados en auditoría central. Pulse un evento para ver el detalle.</p>
+      <p class="feed-subtitle">Últimos eventos registrados en auditoría central. Doble clic en un evento para ver el detalle.</p>
     </header>
 
     <ul v-if="items.length > 0" class="feed-list">
       <li v-for="item in items" :key="item.id">
-        <button type="button" class="feed-item" @click="emit('select', item.id)">
+        <button
+          type="button"
+          class="feed-item"
+          title="Doble clic para ver el detalle"
+          @dblclick="emit('select', item.id)"
+          @keydown.enter="emit('select', item.id)"
+        >
           <div class="feed-item-main">
             <p class="feed-category">{{ item.category_label }}</p>
             <p class="feed-meta">

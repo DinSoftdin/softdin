@@ -322,8 +322,9 @@ onMounted(() => {
       <p v-if="error" class="alert-error">{{ error }}</p>
       <p v-else-if="loading && items.length === 0" class="state-message">Cargando eventos…</p>
       <p v-else-if="items.length === 0" class="state-message">No hay eventos con los filtros seleccionados.</p>
+      <p v-else class="table-hint">Doble clic en una fila para ver el detalle del evento.</p>
 
-      <div v-else class="table-wrap">
+      <div v-if="items.length > 0" class="table-wrap">
         <table class="audit-table">
           <thead>
             <tr>
@@ -341,7 +342,8 @@ onMounted(() => {
               :key="event.id"
               class="audit-row"
               tabindex="0"
-              @click="openDetail(event)"
+              title="Doble clic para ver el detalle"
+              @dblclick="openDetail(event)"
               @keydown.enter="openDetail(event)"
             >
               <td class="whitespace-nowrap">{{ formatWhen(event.occurred_at) }}</td>
@@ -555,6 +557,13 @@ onMounted(() => {
   border-bottom: 1px solid #f1f5f9;
   padding: 0.875rem 1rem;
   vertical-align: top;
+}
+
+.table-hint {
+  margin: 0;
+  padding: 0.75rem 1rem 0;
+  font-size: 0.75rem;
+  color: #64748b;
 }
 
 .audit-row {

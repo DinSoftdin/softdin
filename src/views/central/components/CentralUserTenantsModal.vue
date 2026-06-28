@@ -19,37 +19,15 @@ const error = ref<string | null>(null)
 const successMessage = ref<string | null>(null)
 const tenants = ref<UserAssignedTenant[]>([])
 
-const showAttachForm = ref(false)
 const availableLoading = ref(false)
 const availableTenants = ref<UserAvailableTenant[]>([])
-const availableSearch = ref('')
+const selectedTenantId = ref('')
 const attachError = ref<string | null>(null)
-const attachingTenantId = ref<string | null>(null)
-const attachConfirmOpen = ref(false)
-const tenantToAttach = ref<UserAvailableTenant | null>(null)
-const attachConfirmRole = ref('member')
+const attaching = ref(false)
 const detachConfirmOpen = ref(false)
 const tenantToDetach = ref<UserAssignedTenant | null>(null)
 const detachError = ref<string | null>(null)
 const detachingTenantId = ref<string | null>(null)
-
-const roleOptions = [
-  { value: 'owner', label: 'Propietario' },
-  { value: 'admin', label: 'Administrador' },
-  { value: 'member', label: 'Miembro' },
-  { value: 'viewer', label: 'Consulta' },
-]
-
-function roleLabel(role: string): string {
-  const labels: Record<string, string> = {
-    owner: 'Propietario',
-    admin: 'Administrador',
-    member: 'Miembro',
-    viewer: 'Consulta',
-  }
-
-  return labels[role] ?? role
-}
 
 function statusLabel(status: string): string {
   if (status === 'active') {
@@ -75,30 +53,17 @@ function statusClass(status: string): string {
   return 'status-default'
 }
 
-function resetAttachForm(): void {
-  availableSearch.value = ''
+function resetAttachState(): void {
+  selectedTenantId.value = ''
   availableTenants.value = []
   attachError.value = null
-  attachConfirmOpen.value = false
-  tenantToAttach.value = null
-  attachConfirmRole.value = 'member'
 }
 
-function openAttachConfirm(tenant: UserAvailableTenant): void {
-  tenantToAttach.value = tenant
-  attachConfirmRole.value = 'member'
-  attachError.value = null
-  attachConfirmOpen.value = true
-}
-
-function closeAttachConfirm(): void {
-  if (attachingTenantId.value !== null) {
-    return
-  }
-
-  attachConfirmOpen.value = false
-  tenantToAttach.value = null
-  attachError.value = null
+function resetPanelState(): void {
+  resetAttachState()
+  detachConfirmOpen.value = false
+  tenantToDetach.value = null
+  detachError.value = null
 }
 
 function openDetachConfirm(tenant: UserAssignedTenant): void {
@@ -172,11 +137,11 @@ async function loadAvailableTenants(): Promise<void> {
   attachError.value = null
 
   try {
-    const data = await centralUserService.fetchAvailableTenants(
-      props.user.id,
-      availableSearch.value,
-    )
+    const data = await centralUserService.fetchAvailableTenants(props.user.id)
     availableTenants.value = data.tenants
+    if (selectedTenantId.value && !data.tenants.some((tenant) => tenant.id === selectedTenantId.value)) {
+      selectedTenantId.value = ''
+    }
   } catch (err) {
     if (axios.isAxiosError(err)) {
       const responseData = err.response?.data as { message?: string } | undefined
@@ -190,46 +155,28 @@ async function loadAvailableTenants(): Promise<void> {
   }
 }
 
-function openAttachForm(): void {
-  showAttachForm.value = true
-  resetAttachForm()
-  void loadAvailableTenants()
-}
-
-function closeAttachForm(): void {
-  showAttachForm.value = false
-  resetAttachForm()
-}
-
-async function confirmAttach(): Promise<void> {
-  if (!props.user || !tenantToAttach.value) {
+async function attachSelectedTenant(): Promise<void> {
+  if (!props.user || !selectedTenantId.value) {
     return
   }
 
-  const tenant = tenantToAttach.value
-  attachingTenantId.value = tenant.id
+  attaching.value = true
   attachError.value = null
 
   try {
     const response = await centralUserService.attachTenant(props.user.id, {
-      tenant_id: tenant.id,
-      role: attachConfirmRole.value,
+      tenant_id: selectedTenantId.value,
     })
 
     tenants.value = [...tenants.value, response.tenant]
       .filter((item, index, list) => list.findIndex((entry) => entry.id === item.id) === index)
       .sort((a, b) => a.name.localeCompare(b.name))
 
-    availableTenants.value = availableTenants.value.filter((item) => item.id !== tenant.id)
     successMessage.value = response.message
-    attachConfirmOpen.value = false
-    tenantToAttach.value = null
+    selectedTenantId.value = ''
     emit('changed')
     await refreshTenants()
-
-    if (showAttachForm.value) {
-      await loadAvailableTenants()
-    }
+    await loadAvailableTenants()
   } catch (err) {
     if (axios.isAxiosError(err)) {
       const responseData = err.response?.data as { message?: string } | undefined
@@ -239,7 +186,7 @@ async function confirmAttach(): Promise<void> {
 
     attachError.value = 'Error de conexión con el servidor.'
   } finally {
-    attachingTenantId.value = null
+    attaching.value = false
   }
 }
 
@@ -262,10 +209,7 @@ async function confirmDetach(): Promise<void> {
     tenantToDetach.value = null
     emit('changed')
     await refreshTenants()
-
-    if (showAttachForm.value) {
-      await loadAvailableTenants()
-    }
+    await loadAvailableTenants()
   } catch (err) {
     if (axios.isAxiosError(err)) {
       const responseData = err.response?.data as { message?: string } | undefined
@@ -287,38 +231,15 @@ watch(
   () => [open.value, props.user?.id] as const,
   ([isOpen]) => {
     if (isOpen && props.user) {
-      showAttachForm.value = false
-      resetAttachForm()
-      detachConfirmOpen.value = false
-      tenantToDetach.value = null
-      detachError.value = null
+      resetPanelState()
       void loadTenants()
+      void loadAvailableTenants()
       return
     }
 
-    showAttachForm.value = false
-    resetAttachForm()
-    detachConfirmOpen.value = false
-    tenantToDetach.value = null
-    detachError.value = null
+    resetPanelState()
   },
 )
-
-let searchTimer: ReturnType<typeof setTimeout> | null = null
-
-watch(availableSearch, () => {
-  if (!showAttachForm.value) {
-    return
-  }
-
-  if (searchTimer) {
-    clearTimeout(searchTimer)
-  }
-
-  searchTimer = setTimeout(() => {
-    void loadAvailableTenants()
-  }, 300)
-})
 </script>
 
 <template>
@@ -335,78 +256,38 @@ watch(availableSearch, () => {
         </header>
 
         <div class="modal-body">
-          <div class="toolbar">
+          <div class="attach-row">
+            <label class="field attach-field">
+              <span class="field-label">Cliente activo</span>
+              <select
+                v-model="selectedTenantId"
+                class="field-input"
+                :disabled="availableLoading || attaching"
+              >
+                <option value="">
+                  {{ availableLoading ? 'Cargando clientes...' : 'Seleccione un cliente activo' }}
+                </option>
+                <option v-for="tenant in availableTenants" :key="tenant.id" :value="tenant.id">
+                  {{ tenant.name }} — {{ tenant.slug }}
+                </option>
+              </select>
+            </label>
+
             <button
-              v-if="!showAttachForm"
               type="button"
-              class="btn-primary"
-              @click="openAttachForm"
+              class="btn-primary attach-btn"
+              :disabled="!selectedTenantId || attaching || availableLoading"
+              @click="attachSelectedTenant"
             >
-              Asociar cliente existente
+              {{ attaching ? 'Asociando…' : 'Asociar' }}
             </button>
           </div>
 
-          <div v-if="showAttachForm" class="attach-panel">
-            <div class="attach-panel-header">
-              <div>
-                <h3 class="attach-title">Clientes de la plataforma</h3>
-                <p class="attach-hint">
-                  Seleccione un cliente registrado en la base central (softdin_central).
-                  La creación de clientes nuevos se gestionará en otro formulario.
-                </p>
-              </div>
-              <button type="button" class="link-btn" @click="closeAttachForm">Cerrar listado</button>
-            </div>
+          <p v-if="!availableLoading && availableTenants.length === 0" class="field-hint">
+            No hay clientes activos disponibles para asociar a este usuario.
+          </p>
 
-            <label class="field">
-              <span class="field-label">Buscar en clientes centrales</span>
-              <input
-                v-model="availableSearch"
-                type="search"
-                class="field-input"
-                placeholder="Nombre o sigla..."
-              />
-            </label>
-
-            <p v-if="availableLoading" class="text-sm text-slate-500">Cargando clientes centrales...</p>
-            <p v-else-if="availableTenants.length === 0" class="text-sm text-slate-500">
-              No hay clientes centrales disponibles para asociar a este usuario.
-            </p>
-
-            <div v-else class="overflow-x-auto attach-table-wrap">
-              <table class="users-table">
-                <thead>
-                  <tr>
-                    <th>Nombre</th>
-                    <th>Sigla</th>
-                    <th>Estado</th>
-                    <th class="actions-col">Acción</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="tenant in availableTenants" :key="tenant.id">
-                    <td class="font-medium text-slate-900">{{ tenant.name }}</td>
-                    <td><code class="slug">{{ tenant.slug }}</code></td>
-                    <td>
-                      <span class="status-badge" :class="statusClass(tenant.status)">
-                        {{ statusLabel(tenant.status) }}
-                      </span>
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        class="btn-associate"
-                        @click="openAttachConfirm(tenant)"
-                      >
-                        Asociar
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
+          <p v-if="attachError" class="alert-error">{{ attachError }}</p>
           <p v-if="successMessage" class="alert-success">{{ successMessage }}</p>
 
           <p v-if="loading" class="text-sm text-slate-500">Cargando clientes...</p>
@@ -421,7 +302,6 @@ watch(availableSearch, () => {
                 <tr>
                   <th>Nombre</th>
                   <th>Sigla</th>
-                  <th>Rol en cliente</th>
                   <th>Estado</th>
                   <th class="actions-col">Acciones</th>
                 </tr>
@@ -430,9 +310,6 @@ watch(availableSearch, () => {
                 <tr v-for="tenant in tenants" :key="tenant.id">
                   <td class="font-medium text-slate-900">{{ tenant.name }}</td>
                   <td><code class="slug">{{ tenant.slug }}</code></td>
-                  <td>
-                    <span class="role-badge">{{ roleLabel(tenant.role) }}</span>
-                  </td>
                   <td>
                     <span class="status-badge" :class="statusClass(tenant.status)">
                       {{ statusLabel(tenant.status) }}
@@ -462,78 +339,6 @@ watch(availableSearch, () => {
 
         <footer class="modal-footer">
           <button type="button" class="btn-secondary" @click="close">Cerrar</button>
-        </footer>
-      </div>
-    </div>
-  </Teleport>
-
-  <Teleport to="body">
-    <div
-      v-if="attachConfirmOpen && tenantToAttach && user"
-      class="modal-backdrop modal-backdrop-confirm"
-      @click.self="closeAttachConfirm"
-    >
-      <div class="modal-panel modal-panel-confirm" role="dialog" aria-modal="true">
-        <header class="modal-header">
-          <div>
-            <p class="modal-kicker modal-kicker-confirm">Asociar cliente</p>
-            <h2 class="modal-title">¿Asociar «{{ tenantToAttach.name }}»?</h2>
-          </div>
-          <button
-            type="button"
-            class="modal-close"
-            aria-label="Cerrar"
-            :disabled="attachingTenantId !== null"
-            @click="closeAttachConfirm"
-          >
-            ×
-          </button>
-        </header>
-
-        <div class="modal-body space-y-3 text-sm text-slate-700">
-          <p>
-            Se vinculará el cliente
-            <strong>{{ tenantToAttach.name }}</strong> (sigla <code class="slug">{{ tenantToAttach.slug }}</code>)
-            al usuario <strong>{{ user.name }}</strong>.
-          </p>
-          <p>
-            Correo del usuario:
-            <strong>{{ user.email }}</strong>
-          </p>
-
-          <label class="field">
-            <span class="field-label">Rol en el cliente</span>
-            <select v-model="attachConfirmRole" class="field-input" :disabled="attachingTenantId !== null">
-              <option v-for="option in roleOptions" :key="option.value" :value="option.value">
-                {{ option.label }}
-              </option>
-            </select>
-          </label>
-
-          <p class="text-brand-700">
-            Al confirmar, el usuario quedará asociado con el rol seleccionado y recibirá una notificación por correo.
-          </p>
-
-          <p v-if="attachError" class="alert-error">{{ attachError }}</p>
-        </div>
-
-        <footer class="modal-footer">
-          <button
-            type="button"
-            class="btn-secondary"
-            :disabled="attachingTenantId !== null"
-            @click="closeAttachConfirm"
-          >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            class="btn-confirm"
-            :disabled="attachingTenantId !== null"
-            @click="confirmAttach"
-          >
-            {{ attachingTenantId !== null ? 'Asociando...' : 'Sí, asociar cliente' }}
-          </button>
         </footer>
       </div>
     </div>
@@ -571,10 +376,6 @@ watch(availableSearch, () => {
           <p>
             Correo del usuario:
             <strong>{{ user.email }}</strong>
-          </p>
-          <p>
-            Rol actual en el cliente:
-            <strong>{{ roleLabel(tenantToDetach.role) }}</strong>
           </p>
           <p>
             Estado del cliente:
@@ -799,6 +600,29 @@ watch(availableSearch, () => {
   font-size: 0.875rem;
   color: #64748b;
   white-space: nowrap;
+}
+
+.attach-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin-bottom: 0.875rem;
+}
+
+.attach-field {
+  flex: 1;
+  min-width: 14rem;
+}
+
+.attach-btn {
+  flex-shrink: 0;
+}
+
+.field-hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.8125rem;
+  color: #64748b;
 }
 
 .field {

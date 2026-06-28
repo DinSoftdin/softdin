@@ -11,13 +11,16 @@ import type {
   DeleteCentralTenantResponse,
   DetachCentralTenantUserResponse,
   TenantAvailableUsersResponse,
+  TenantDatabaseDropResponse,
+  TenantDatabaseProvisionResponse,
+  TenantDatabaseStatusResponse,
   TenantUsersResponse,
   UpdateCentralTenantOptions,
   UpdateCentralTenantPayload,
   UpdateCentralTenantResponse,
 } from '@/types/tenant'
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8080/api/v1'
+const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api/v1'
 
 export function tenantLogoPublicUrl(slug: string, version = 0): string {
   const query = version > 0 ? `?v=${version}` : ''
@@ -43,9 +46,15 @@ function buildTenantFormData(
   if ('status' in payload) {
     formData.append('status', payload.status)
     formData.append('domain', payload.domain)
+
+    if (payload.service_types) {
+      for (const serviceType of payload.service_types) {
+        formData.append('service_types[]', serviceType)
+      }
+    }
   } else {
-    appendBoolean(formData, 'migrate', payload.migrate ?? true)
-    appendBoolean(formData, 'seed', payload.seed ?? true)
+    appendBoolean(formData, 'migrate', payload.migrate ?? false)
+    appendBoolean(formData, 'seed', payload.seed ?? false)
 
     if (payload.domain) {
       formData.append('domain', payload.domain)
@@ -114,6 +123,35 @@ export const tenantService = {
     return data
   },
 
+  async fetchCentralDatabaseStatus(tenantId: string): Promise<TenantDatabaseStatusResponse> {
+    const { data } = await api.get<TenantDatabaseStatusResponse>(
+      `/admin/tenants/${encodeURIComponent(tenantId)}/database`,
+    )
+    return data
+  },
+
+  async provisionCentralDatabase(
+    tenantId: string,
+    payload?: { service_type?: 'rrhh' },
+  ): Promise<TenantDatabaseProvisionResponse> {
+    const { data } = await api.post<TenantDatabaseProvisionResponse>(
+      `/admin/tenants/${encodeURIComponent(tenantId)}/database/provision`,
+      payload ?? { service_type: 'rrhh' },
+    )
+    return data
+  },
+
+  async dropCentralDatabase(
+    tenantId: string,
+    payload?: { service_type?: 'rrhh' },
+  ): Promise<TenantDatabaseDropResponse> {
+    const { data } = await api.delete<TenantDatabaseDropResponse>(
+      `/admin/tenants/${encodeURIComponent(tenantId)}/database`,
+      { data: payload ?? { service_type: 'rrhh' } },
+    )
+    return data
+  },
+
   async createCentral(
     payload: CreateCentralTenantPayload,
     options?: CreateCentralTenantOptions,
@@ -128,8 +166,8 @@ export const tenantService = {
 
     const { data } = await api.post<CreateCentralTenantResponse>('/admin/tenants', {
       ...payload,
-      migrate: payload.migrate ?? true,
-      seed: payload.seed ?? true,
+      migrate: payload.migrate ?? false,
+      seed: payload.seed ?? false,
     })
     return data
   },

@@ -71,7 +71,7 @@ export const useAuthStore = defineStore('auth', () => {
   )
   const platformRoleLabel = computed(() => {
     if (isSuperuser.value) {
-      return 'Superusuario'
+      return 'Super-Usuario'
     }
 
     if (isAdmin.value) {

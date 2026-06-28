@@ -100,7 +100,7 @@ export interface UserAvailableTenantsResponse {
 
 export interface AttachCentralUserTenantPayload {
   tenant_id: string
-  role: string
+  role?: string
 }
 
 export interface AttachCentralUserTenantResponse {

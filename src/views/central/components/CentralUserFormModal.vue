@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, provide, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { centralUserService } from '@/services/central-user.service'
 import type { CentralUser } from '@/types/central-user'
 import { centralAuditRouteForUser } from '@/utils/central-audit-navigation'
+import { CENTRAL_USER_FIELD_HELP } from '@/utils/central-form-help'
+import CentralFormLabel from '@/views/central/components/CentralFormLabel.vue'
+import CentralFormRequiredLegend from '@/views/central/components/CentralFormRequiredLegend.vue'
+import CentralFieldHelp from '@/views/central/components/CentralFieldHelp.vue'
 
 const open = defineModel<boolean>('open', { default: false })
 
@@ -54,10 +58,11 @@ const loadingAvatar = ref(false)
 const form = reactive({
   name: '',
   email: '',
-  is_admin: false,
-  is_superuser: false,
   state: true,
 })
+
+const activeHelpKey = ref<string | null>(null)
+provide('centralFieldHelpGroup', activeHelpKey)
 
 const userInitials = computed(() => {
   const name = form.name.trim() || props.user?.name?.trim() || ''
@@ -142,8 +147,6 @@ async function loadCurrentAvatar(): Promise<void> {
 function resetCreateForm(): void {
   form.name = ''
   form.email = ''
-  form.is_admin = false
-  form.is_superuser = false
   form.state = true
   if (!mailFailurePending.value) {
     error.value = null
@@ -155,8 +158,6 @@ function resetCreateForm(): void {
 function resetEditForm(): void {
   form.name = props.user?.name ?? ''
   form.email = props.user?.email ?? ''
-  form.is_admin = props.user?.is_admin ?? false
-  form.is_superuser = props.user?.is_superuser ?? false
   form.state = props.user?.state ?? true
   if (!mailFailurePending.value) {
     error.value = null
@@ -292,8 +293,6 @@ async function handleSubmit(): Promise<void> {
         {
           name: form.name.trim(),
           email: form.email.trim().toLowerCase(),
-          is_admin: form.is_admin,
-          is_superuser: form.is_superuser,
           state: form.state,
         },
         { photo: selectedFile.value ?? undefined },
@@ -312,8 +311,6 @@ async function handleSubmit(): Promise<void> {
         {
           name: form.name.trim(),
           email: form.email.trim().toLowerCase(),
-          is_admin: form.is_admin,
-          is_superuser: form.is_superuser,
           state: form.state,
         },
         {
@@ -343,6 +340,18 @@ async function handleSubmit(): Promise<void> {
 }
 
 watch(
+  () => open.value,
+  (isOpen) => {
+    document.body.style.overflow = isOpen ? 'hidden' : ''
+
+    if (!isOpen) {
+      activeHelpKey.value = null
+    }
+  },
+  { immediate: true },
+)
+
+watch(
   () => [open.value, props.user?.id ?? 'create'] as const,
   ([isOpen]) => {
     if (isOpen) {
@@ -358,23 +367,15 @@ watch(
   { immediate: true },
 )
 
-watch(
-  () => form.is_superuser,
-  (isSuperuser) => {
-    if (isSuperuser) {
-      form.is_admin = true
-    }
-  },
-)
-
 onBeforeUnmount(() => {
+  document.body.style.overflow = ''
   resetPhotoState()
 })
 </script>
 
 <template>
   <Teleport to="body">
-    <div v-if="open" class="modal-backdrop" @click.self="close">
+    <div v-if="open" class="modal-backdrop">
       <form class="modal-panel" autocomplete="off" @submit.prevent="handleSubmit">
         <header class="modal-header">
           <div>
@@ -387,8 +388,24 @@ onBeforeUnmount(() => {
         </header>
 
         <div class="modal-body space-y-4">
-          <div class="field-block" data-tooltip="Imagen de perfil del usuario. Se recomienda 512×512 px en JPG, PNG o WebP.">
-            <p class="label">Avatar</p>
+          <CentralFormRequiredLegend />
+
+          <p class="form-recommendation">
+            Doble clic en el icono
+            <span class="form-recommendation-icon" aria-hidden="true">ℹ</span>
+            de cada campo para ver su descripción; al alejar el mouse se oculta.
+            <template v-if="isCreateMode">
+              Al guardar se enviará un correo de activación para que el usuario defina su contraseña.
+            </template>
+            <template v-else>
+              Use el historial de cambios para revisar la auditoría.
+            </template>
+          </p>
+
+          <div class="field-block">
+            <CentralFormLabel optional help-trigger="dblclick" :help="CENTRAL_USER_FIELD_HELP.avatar">
+              Avatar
+            </CentralFormLabel>
 
             <div class="avatar-row">
               <span class="avatar-preview">
@@ -448,7 +465,9 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="field-block">
-            <label for="user-name" class="label label-plain">Nombre</label>
+            <CentralFormLabel for="user-name" required help-trigger="dblclick" :help="CENTRAL_USER_FIELD_HELP.name">
+              Nombre
+            </CentralFormLabel>
             <input
               id="user-name"
               v-model="form.name"
@@ -461,7 +480,9 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="field-block">
-            <label for="user-email" class="label label-plain">Correo</label>
+            <CentralFormLabel for="user-email" required help-trigger="dblclick" :help="CENTRAL_USER_FIELD_HELP.email">
+              Correo
+            </CentralFormLabel>
             <input
               id="user-email"
               v-model="form.email"
@@ -473,46 +494,16 @@ onBeforeUnmount(() => {
             <p v-if="fieldErrors.email" class="field-error">{{ fieldErrors.email }}</p>
           </div>
 
-          <div
-            class="field-block field-block-checkbox"
-            data-tooltip="Administra SoftDIN Central: usuarios, clientes y configuración global de la plataforma. Un superusuario también es administrador de cliente."
-          >
-            <div class="checkbox-row">
-              <label class="checkbox-label">
-                <input v-model="form.is_superuser" type="checkbox" />
-                Superusuario
-              </label>
-            </div>
-          </div>
-
-          <div
-            class="field-block field-block-checkbox"
-            data-tooltip="Puede administrar recursos dentro de los clientes (tenants) asignados. No administra la plataforma central."
-          >
-            <div class="checkbox-row">
-              <label class="checkbox-label">
-                <input v-model="form.is_admin" type="checkbox" :disabled="form.is_superuser" />
-                Administrador de cliente
-              </label>
-            </div>
-          </div>
-
-          <div
-            class="field-block field-block-checkbox"
-            data-tooltip="Indica si el usuario puede iniciar sesión. Si está inactivo, no podrá acceder a SoftDIN hasta que un administrador lo reactive."
-          >
+          <div class="field-block field-block-checkbox">
             <div class="checkbox-row">
               <label class="checkbox-label">
                 <input v-model="form.state" type="checkbox" />
-                Activo
+                <span>Activo</span>
+                <CentralFieldHelp trigger="dblclick" :text="CENTRAL_USER_FIELD_HELP.state" />
               </label>
             </div>
             <p v-if="fieldErrors.state" class="field-error">{{ fieldErrors.state }}</p>
           </div>
-
-          <p class="field-hint">
-            Los usuarios se registran en la base central (softdin_central). Luego puede asociarlos a clientes.
-          </p>
 
           <div
             v-if="!isCreateMode && user?.pending_activation"
@@ -561,7 +552,7 @@ onBeforeUnmount(() => {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 100;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -570,6 +561,8 @@ onBeforeUnmount(() => {
 }
 
 .modal-panel {
+  position: relative;
+  z-index: 101;
   width: 100%;
   max-width: 32rem;
   max-height: calc(100vh - 2rem);
@@ -650,50 +643,12 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 
-.label {
-  display: block;
-  margin-bottom: 0.25rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #334155;
-  cursor: help;
-}
-
-.label-plain {
-  cursor: default;
-}
-
 .field-block {
   position: relative;
 }
 
-.field-block[data-tooltip]::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  left: 0;
-  top: calc(100% + 0.375rem);
-  z-index: 60;
-  width: min(18rem, calc(100vw - 3rem));
-  border-radius: 0.5rem;
-  background: #0f172a;
-  padding: 0.5rem 0.625rem;
-  font-size: 0.75rem;
-  font-weight: 400;
-  line-height: 1.45;
-  white-space: normal;
-  color: #fff;
-  opacity: 0;
-  pointer-events: none;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
-}
-
-.field-block[data-tooltip]:hover::after,
-.field-block[data-tooltip]:focus-within::after {
-  opacity: 1;
-}
-
 .field-block-checkbox .checkbox-label {
-  cursor: help;
+  cursor: pointer;
 }
 
 .input-field {
@@ -733,6 +688,30 @@ onBeforeUnmount(() => {
   margin-top: 0.25rem;
   font-size: 0.75rem;
   color: #64748b;
+}
+
+.form-recommendation {
+  margin: 0;
+  border-radius: 0.5rem;
+  background: #f8fafc;
+  padding: 0.625rem 0.75rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: #475569;
+}
+
+.form-recommendation-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 9999px;
+  background: #e2e8f0;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #64748b;
+  vertical-align: middle;
 }
 
 .alert-error {
