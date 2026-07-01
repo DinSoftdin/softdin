@@ -20,9 +20,9 @@ export const registrosMaestrosMenu: MenuModule = {
   label: 'Registros Maestros',
   icon: 'M',
   children: [
-    { label: 'Geografía', route: '/maestros/geografia', routeName: 'maestros-geografia', ready: true },
-    { label: 'Cargos', route: '/maestros/cargos', routeName: 'maestros-cargos', ready: false },
-    { label: 'Terceros', route: '/maestros/terceros', routeName: 'maestros-terceros', ready: false },
+    { label: 'Geografía', route: '/registros-maestros/geografia', routeName: 'registros-maestros-geografia', ready: true },
+    { label: 'Cargos', route: '/registros-maestros/cargos', routeName: 'registros-maestros-cargos', ready: false },
+    { label: 'Terceros', route: '/registros-maestros/terceros', routeName: 'registros-maestros-terceros', ready: false },
   ],
 }
 

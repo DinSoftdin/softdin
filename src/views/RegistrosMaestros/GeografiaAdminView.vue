@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import axios from 'axios'
-import GeografiaEntityModal from '@/views/app/components/GeografiaEntityModal.vue'
-import GeografiaTreePanel from '@/views/app/components/GeografiaTreePanel.vue'
+import GeografiaEntityModal from '@/views/RegistrosMaestros/components/GeografiaEntityModal.vue'
+import GeografiaTreePanel from '@/views/RegistrosMaestros/components/GeografiaTreePanel.vue'
 import { geoService } from '@/services/geo.service'
 import type { Barrio, Ciudad, ContinenteEnumItem, Departamento, GeoLevel, Pais } from '@/types/geo'
 import { DEFAULT_CONTINENTE_ID, GEO_LEVEL_LABELS } from '@/types/geo'

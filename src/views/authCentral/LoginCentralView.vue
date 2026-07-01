@@ -105,7 +105,7 @@ async function handleSubmit(): Promise<void> {
           />
         </div>
 
-        <div class="flex flex-col gap-2 text-sm">
+        <div class="auth-links-row text-sm">
           <RouterLink :to="{ name: 'central-forgot-password' }" class="auth-link">
             ¿Olvidó su contraseña?
           </RouterLink>
@@ -219,5 +219,13 @@ async function handleSubmit(): Promise<void> {
 .auth-link:hover {
   color: var(--color-brand-700);
   text-decoration: underline;
+}
+
+.auth-links-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
 }
 </style>

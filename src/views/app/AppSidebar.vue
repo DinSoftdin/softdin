@@ -39,7 +39,7 @@ const tenantInitials = computed(() => {
 })
 
 function isRegistrosMaestrosActive(): boolean {
-  return route.path.startsWith('/maestros/')
+  return route.path.startsWith('/registros-maestros/')
 }
 
 function isRegistrosMaestrosRoute(routeName?: string): boolean {
@@ -97,7 +97,7 @@ async function handleTenantChange(event: Event): Promise<void> {
 watch(
   () => route.path,
   (path) => {
-    if (path.startsWith('/maestros/')) {
+    if (path.startsWith('/registros-maestros/')) {
       registrosMaestrosExpanded.value = true
     }
   },

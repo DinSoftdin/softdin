@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { api } from '@/services/api'
-import { API_BASE_URL } from '@/config/apiBase'
+import { API_BASE_URL, VITE_API_URL_RAW, wasApiBaseUrlNormalized } from '@/config/apiBase'
 import type { AuthResponse, CentralAdminLoginCredentials } from '@/types/auth'
 import { extractAxiosErrorMessage } from '@/utils/apiError'
 
@@ -140,19 +140,43 @@ export function formatTraceSteps(steps: TraceStep[]): string {
     .join('\n')
 }
 
+function describeNetworkError(code: string | undefined, message: string): string {
+  if (code === 'ERR_NETWORK') {
+    return [
+      'ERR_NETWORK — el navegador no pudo completar la petición.',
+      'Causas frecuentes:',
+      '· Certificado SSL inválido o autofirmado en Traefik/Dokploy',
+      '· VITE_API_URL apunta al frontend en lugar de la API',
+      '· CORS: falta el dominio del frontend en CORS_ALLOWED_ORIGINS (softdin-api/.env)',
+      '· La API no está desplegada o Traefik no enruta /api/v1 al contenedor Laravel',
+    ].join('\n       ')
+  }
+
+  return `${code ?? 'NETWORK'} — ${message}`
+}
+
 export async function centralAdminLoginWithTrace(
   credentials: CentralAdminLoginCredentials,
 ): Promise<{ data: AuthResponse; steps: TraceStep[] }> {
   const steps: TraceStep[] = []
-  const viteRaw = import.meta.env.VITE_API_URL?.trim()
+  const viteRaw = VITE_API_URL_RAW
+
+  if (viteRaw && wasApiBaseUrlNormalized()) {
+    pushStep(
+      steps,
+      'warn',
+      'VITE_API_URL sin /api/v1',
+      `Valor configurado: ${viteRaw}\n       Se usa automáticamente: ${API_BASE_URL}\n       Recomendado en Dokploy: VITE_API_URL=${apiOrigin(API_BASE_URL)}/api/v1`,
+    )
+  }
 
   pushStep(
     steps,
     viteRaw ? 'ok' : 'warn',
     'Configuración frontend (VITE_API_URL)',
     viteRaw
-      ? `${API_BASE_URL}`
-      : `No definida en .env — usando fallback ${API_BASE_URL}`,
+      ? `Efectiva: ${API_BASE_URL}`
+      : `No definida — usando fallback ${API_BASE_URL}`,
   )
 
   const endpoint = `${API_BASE_URL}/auth/central-admin-login`
@@ -188,7 +212,7 @@ export async function centralAdminLoginWithTrace(
     const detail = axios.isAxiosError(err)
       ? err.response
         ? `HTTP ${err.response.status}`
-        : `Sin respuesta — ${err.code ?? err.message} (API caída, firewall, CORS o APP_URL incorrecto)`
+        : describeNetworkError(err.code, err.message)
       : String(err)
 
     pushStep(steps, 'fail', 'Conectividad API', `GET ${origin}/up → FALLO: ${detail}`)
@@ -222,7 +246,7 @@ export async function centralAdminLoginWithTrace(
       axios.isAxiosError(err)
         ? err.response
           ? `HTTP ${err.response.status} — ${describeResponseBody(err.response.data)}`
-          : `Error de red: ${err.code ?? err.message}`
+          : describeNetworkError(err.code, err.message)
         : String(err),
     )
 

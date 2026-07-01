@@ -3,6 +3,7 @@ import { ref, watch } from 'vue'
 import axios from 'axios'
 import { tenantService } from '@/services/tenant.service'
 import type { CentralTenant, TenantAssignedUser, TenantAvailableUser } from '@/types/tenant'
+import CentralUserAvatar from '@/views/central/components/CentralUserAvatar.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -206,6 +207,7 @@ watch(
 
     resetPanelState()
   },
+  { immediate: true },
 )
 </script>
 
@@ -262,7 +264,17 @@ watch(
         </thead>
         <tbody>
           <tr v-for="user in users" :key="user.id">
-            <td class="font-medium text-slate-900">{{ user.name }}</td>
+            <td>
+              <div class="user-cell">
+                <CentralUserAvatar
+                  :key="`${user.id}-${user.has_avatar}`"
+                  :user-id="user.id"
+                  :name="user.name"
+                  :has-avatar="user.has_avatar"
+                />
+                <span class="font-medium text-slate-900">{{ user.name }}</span>
+              </div>
+            </td>
             <td>{{ user.email }}</td>
             <td>
               <button
@@ -349,6 +361,12 @@ watch(
 </template>
 
 <style scoped>
+.user-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .attach-row {
   display: flex;
   flex-wrap: wrap;

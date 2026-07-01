@@ -50,9 +50,8 @@ function buildTenantFormData(
     formData.append('domain', payload.domain)
 
     if (payload.service_types) {
-      for (const serviceType of payload.service_types) {
-        formData.append('service_types[]', serviceType)
-      }
+      appendBoolean(formData, 'service_types[rrhh]', payload.service_types.rrhh)
+      appendBoolean(formData, 'service_types[sgi]', payload.service_types.sgi)
     }
   } else {
     appendBoolean(formData, 'migrate', payload.migrate ?? false)

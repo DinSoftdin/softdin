@@ -3,10 +3,9 @@ import { computed, onMounted, ref } from 'vue'
 import axios from 'axios'
 import CentralTenantCreateModal from '@/views/central/components/CentralTenantCreateModal.vue'
 import CentralTenantEditModal from '@/views/central/components/CentralTenantEditModal.vue'
+import CentralTenantUsersModal from '@/views/central/components/CentralTenantUsersModal.vue'
 import { tenantLogoPublicUrl, tenantService } from '@/services/tenant.service'
 import type { CentralTenant } from '@/types/tenant'
-
-type EditTenantTab = 'info' | 'services' | 'users'
 
 const loading = ref(true)
 const error = ref<string | null>(null)
@@ -15,7 +14,7 @@ const search = ref('')
 
 const createModalOpen = ref(false)
 const editModalOpen = ref(false)
-const editInitialTab = ref<EditTenantTab>('info')
+const usersModalOpen = ref(false)
 const deleteModalOpen = ref(false)
 const selectedTenant = ref<CentralTenant | null>(null)
 const deleting = ref(false)
@@ -136,14 +135,14 @@ function openCreateModal(): void {
   createModalOpen.value = true
 }
 
-function openEditModal(tenant: CentralTenant, tab: EditTenantTab = 'info'): void {
+function openEditModal(tenant: CentralTenant): void {
   selectedTenant.value = tenant
-  editInitialTab.value = tab
   editModalOpen.value = true
 }
 
 function openUsersModal(tenant: CentralTenant): void {
-  openEditModal(tenant, 'users')
+  selectedTenant.value = tenant
+  usersModalOpen.value = true
 }
 
 function onTenantRowDblClick(tenant: CentralTenant, event: MouseEvent): void {
@@ -379,8 +378,11 @@ async function confirmDeleteTenant(): Promise<void> {
     <CentralTenantEditModal
       v-model:open="editModalOpen"
       :tenant="selectedTenant"
-      :initial-tab="editInitialTab"
       @saved="onTenantSaved"
+    />
+    <CentralTenantUsersModal
+      v-model:open="usersModalOpen"
+      :tenant="selectedTenant"
     />
 
     <Teleport to="body">

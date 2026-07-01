@@ -37,7 +37,12 @@ function navigateTo(routeName: string): void {
   >
     <div class="sidebar-header border-b border-white/10">
       <div class="flex items-center" :class="isCompact ? 'justify-center' : 'gap-3'">
-        <span class="brand-mark" title="SoftDIN Central">SC</span>
+        <img
+          class="brand-mark"
+          src="/favicon.svg"
+          alt="SoftDIN Central"
+          title="SoftDIN Central"
+        />
         <div v-if="!isCompact" class="min-w-0 flex-1">
           <p class="truncate text-sm font-semibold tracking-wide">SoftDIN Central</p>
           <p class="truncate text-xs text-slate-400">Administración plataforma</p>
@@ -94,16 +99,12 @@ function navigateTo(routeName: string): void {
 }
 
 .brand-mark {
-  display: flex;
+  display: block;
   height: 2.5rem;
   width: 2.5rem;
   flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border-radius: 0.75rem;
-  background: var(--color-brand-600);
-  font-size: 0.75rem;
-  font-weight: 800;
+  border-radius: 9999px;
+  object-fit: cover;
 }
 
 .nav-item {

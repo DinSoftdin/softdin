@@ -94,6 +94,7 @@ export const authService = {
   async fetchProfilePhoto(): Promise<Blob> {
     const { data } = await api.get<Blob>('/auth/profile/photo', {
       responseType: 'blob',
+      headers: { Accept: 'image/*,*/*' },
     })
     return data
   },

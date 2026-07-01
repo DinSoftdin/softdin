@@ -151,15 +151,35 @@ export const useAuthStore = defineStore('auth', () => {
   async function loadAvatar(): Promise<void> {
     revokeAvatarUrl()
 
-    if (!token.value || !user.value?.has_avatar) {
+    if (!token.value || !user.value) {
+      return
+    }
+
+    if (user.value.has_avatar === false) {
       return
     }
 
     try {
       const blob = await authService.fetchProfilePhoto()
+      if (!blob || blob.size === 0 || !blob.type.startsWith('image/')) {
+        return
+      }
+
       avatarUrl.value = URL.createObjectURL(blob)
     } catch {
       avatarUrl.value = null
+    }
+  }
+
+  async function bootstrapSession(): Promise<void> {
+    if (!token.value) {
+      return
+    }
+
+    try {
+      await fetchMe()
+    } catch {
+      await loadAvatar()
     }
   }
 
@@ -351,6 +371,7 @@ export const useAuthStore = defineStore('auth', () => {
     setSessionFromCentralAdminLogin,
     logout,
     fetchMe,
+    bootstrapSession,
     loadAvatar,
     switchTenant,
     updateProfile,

@@ -4,7 +4,7 @@ import type { CentralTenant } from '@/types/tenant'
 
 const open = defineModel<boolean>('open', { default: false })
 
-defineProps<{
+const props = defineProps<{
   tenant: CentralTenant | null
 }>()
 
@@ -15,19 +15,19 @@ function close(): void {
 
 <template>
   <Teleport to="body">
-    <div v-if="open && tenant" class="modal-backdrop" @click.self="close">
+    <div v-if="open && props.tenant" class="modal-backdrop" @click.self="close">
       <div class="modal-panel" role="dialog" aria-modal="true">
         <header class="modal-header">
           <div>
             <p class="modal-kicker">Usuarios asociados</p>
-            <h2 class="modal-title">{{ tenant.name }}</h2>
-            <p class="modal-subtitle">{{ tenant.slug }}</p>
+            <h2 class="modal-title">{{ props.tenant.name }}</h2>
+            <p class="modal-subtitle">{{ props.tenant.slug }}</p>
           </div>
           <button type="button" class="modal-close" aria-label="Cerrar" @click="close">×</button>
         </header>
 
         <div class="modal-body">
-          <CentralTenantUsersPanel :tenant="tenant" :active="open" />
+          <CentralTenantUsersPanel :tenant="props.tenant" :active="open" />
         </div>
 
         <footer class="modal-footer">

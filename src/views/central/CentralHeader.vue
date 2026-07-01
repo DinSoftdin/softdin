@@ -17,6 +17,7 @@ const route = useRoute()
 
 const menuOpen = ref(false)
 const menuRoot = ref<HTMLElement | null>(null)
+const avatarImageFailed = ref(false)
 
 const userInitials = computed(() => {
   const name = auth.user?.name?.trim() ?? ''
@@ -62,7 +63,17 @@ watch(
   () => closeMenu(),
 )
 
-onMounted(() => document.addEventListener('click', onDocumentClick))
+watch(
+  () => auth.avatarUrl,
+  () => {
+    avatarImageFailed.value = false
+  },
+)
+
+onMounted(() => {
+  document.addEventListener('click', onDocumentClick)
+  void auth.loadAvatar()
+})
 onUnmounted(() => document.removeEventListener('click', onDocumentClick))
 </script>
 
@@ -90,10 +101,11 @@ onUnmounted(() => document.removeEventListener('click', onDocumentClick))
         </span>
         <span class="user-avatar">
           <img
-            v-if="auth.avatarUrl"
+            v-if="auth.avatarUrl && !avatarImageFailed"
             :src="auth.avatarUrl"
             :alt="auth.user?.name ?? 'Usuario'"
-            class="h-full w-full object-cover"
+            class="avatar-image"
+            @error="avatarImageFailed = true"
           />
           <span v-else>{{ userInitials }}</span>
         </span>
@@ -183,6 +195,12 @@ onUnmounted(() => document.removeEventListener('click', onDocumentClick))
   font-size: 0.6875rem;
   font-weight: 700;
   color: #475569;
+}
+
+.avatar-image {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
 }
 
 .user-dropdown {

@@ -6,7 +6,11 @@ export function extractAxiosErrorMessage(error: unknown, fallback: string): stri
   }
 
   if (!error.response) {
-    return 'No hay respuesta del servidor. Compruebe que la API esté en ejecución (php artisan serve en softdin-api).'
+    if (error.code === 'ERR_NETWORK') {
+      return 'No hay respuesta del servidor (ERR_NETWORK). Revise certificado SSL, VITE_API_URL con /api/v1, CORS_ALLOWED_ORIGINS y que la API esté desplegada.'
+    }
+
+    return 'No hay respuesta del servidor. Compruebe VITE_API_URL, que la API esté en ejecución y accesible desde el navegador.'
   }
 
   const status = error.response.status

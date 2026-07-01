@@ -42,5 +42,5 @@ app.mount('#app')
 
 const auth = useAuthStore()
 if (auth.isAuthenticated) {
-  void auth.loadAvatar()
+  void auth.bootstrapSession()
 }

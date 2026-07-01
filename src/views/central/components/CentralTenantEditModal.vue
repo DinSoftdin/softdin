@@ -3,16 +3,21 @@ import { computed, provide, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { tenantLogoPublicUrl, tenantService } from '@/services/tenant.service'
-import type { CentralTenant, TenantProvisionProgress, TenantServiceType } from '@/types/tenant'
+import type { CentralTenant, TenantProvisionProgress, TenantServiceType, TenantServiceTypesMap } from '@/types/tenant'
 import { TENANT_SERVICE_TYPE_OPTIONS } from '@/types/tenant'
 import { centralAuditRouteForTenant } from '@/utils/central-audit-navigation'
 import { CENTRAL_TENANT_FIELD_HELP } from '@/utils/central-form-help'
+import {
+  cloneTenantServiceTypes,
+  DEFAULT_TENANT_SERVICE_TYPES,
+  isTenantServiceTypeEnabled,
+  parseTenantServiceTypes,
+} from '@/utils/tenantServiceTypes'
 import CentralFormLabel from '@/views/central/components/CentralFormLabel.vue'
 import CentralFormRequiredLegend from '@/views/central/components/CentralFormRequiredLegend.vue'
 import CentralProvisionProgressRing from '@/views/central/components/CentralProvisionProgressRing.vue'
-import CentralTenantUsersPanel from '@/views/central/components/CentralTenantUsersPanel.vue'
 
-type EditTenantTab = 'info' | 'services' | 'users'
+type EditTenantTab = 'info' | 'services'
 
 const open = defineModel<boolean>('open', { default: false })
 
@@ -49,7 +54,7 @@ const form = reactive({
   slug: '',
   status: 'active',
   domain: '',
-  serviceTypes: [] as TenantServiceType[],
+  serviceTypes: { ...DEFAULT_TENANT_SERVICE_TYPES } as TenantServiceTypesMap,
 })
 
 const serviceTypeOptions = TENANT_SERVICE_TYPE_OPTIONS
@@ -112,27 +117,45 @@ const canDeleteTenant = computed(() => (
 ))
 
 function serviceTypeStatusLabel(value: TenantServiceType): string {
+  if (!form.serviceTypes[value]) {
+    return 'No seleccionado'
+  }
+
   if (value === 'rrhh') {
     return databaseStatusLabel.value
   }
 
-  return 'Pendiente por crear'
+  return 'Seleccionado · pendiente de provisionar'
 }
 
 function serviceTypeStatusClass(value: TenantServiceType): string {
+  if (!form.serviceTypes[value]) {
+    return 'service-type-status-pending'
+  }
+
   if (value === 'rrhh') {
     return databaseStatusClass.value
   }
 
-  return 'service-type-status-waiting'
+  return 'service-type-status-selected'
 }
 
 function canCreateServiceType(value: TenantServiceType): boolean {
-  return value === 'rrhh' && canCreateTenant.value
+  const option = serviceTypeOptions.find((item) => item.value === value)
+  return Boolean(
+    option?.provisionable
+    && form.serviceTypes[value]
+    && canCreateTenant.value,
+  )
 }
 
 function canDeleteServiceType(value: TenantServiceType): boolean {
-  return value === 'rrhh' && canDeleteTenant.value
+  const option = serviceTypeOptions.find((item) => item.value === value)
+  return Boolean(
+    option?.provisionable
+    && form.serviceTypes[value]
+    && canDeleteTenant.value,
+  )
 }
 
 function onCreateServiceType(value: TenantServiceType): void {
@@ -255,9 +278,8 @@ function cancelLogoChanges(): void {
   resetLogoState()
 }
 
-function tenantServiceTypes(tenant: CentralTenant): TenantServiceType[] {
-  const values = tenant.data?.service_types ?? []
-  return values.filter((value): value is TenantServiceType => value === 'rrhh')
+function tenantServiceTypes(tenant: CentralTenant): TenantServiceTypesMap {
+  return parseTenantServiceTypes(tenant.data?.service_types)
 }
 
 function setActiveTab(tab: EditTenantTab): void {
@@ -439,7 +461,7 @@ function resetForm(): void {
   form.slug = current.slug
   form.status = current.status
   form.domain = primaryDomainOf(current)
-  form.serviceTypes = tenantServiceTypes(current)
+  form.serviceTypes = cloneTenantServiceTypes(tenantServiceTypes(current))
   error.value = null
   fieldErrors.value = {}
   databaseSuccessMessage.value = null
@@ -481,8 +503,18 @@ function applyApiErrors(errors?: Record<string, string[]>): void {
   fieldErrors.value = mapped
 }
 
+function hasSelectedServiceTypes(): boolean {
+  return TENANT_SERVICE_TYPE_OPTIONS.some((option) => isTenantServiceTypeEnabled(form.serviceTypes, option.value))
+}
+
 async function handleSubmit(): Promise<void> {
   if (!tenant.value) {
+    return
+  }
+
+  if (!hasSelectedServiceTypes()) {
+    error.value = 'Seleccione al menos un tipo de servicio.'
+    fieldErrors.value = { service_types: 'Seleccione al menos un tipo de servicio.' }
     return
   }
 
@@ -498,7 +530,7 @@ async function handleSubmit(): Promise<void> {
         slug: form.slug.trim().toLowerCase(),
         status: form.status,
         domain: form.domain.trim(),
-        service_types: [...form.serviceTypes],
+        service_types: cloneTenantServiceTypes(form.serviceTypes),
       },
       {
         logo: selectedFile.value,
@@ -650,16 +682,6 @@ watch(
           >
             Tipos de servicios
           </button>
-          <button
-            type="button"
-            role="tab"
-            class="modal-tab"
-            :class="{ 'modal-tab-active': activeTab === 'users' }"
-            :aria-selected="activeTab === 'users'"
-            @click="setActiveTab('users')"
-          >
-            Usuarios
-          </button>
         </nav>
 
         <div v-show="activeTab === 'info'" class="modal-body space-y-4" role="tabpanel">
@@ -743,7 +765,8 @@ watch(
 
             <div class="service-types-box">
               <p class="field-hint section-hint">
-                Seleccione los módulos habilitados. Por ahora solo RRHH permite crear o eliminar el tenant operacional.
+                Selección múltiple: marque uno o varios módulos. La creación de BD operacional
+                solo está disponible para RRHH por ahora.
               </p>
 
               <div class="service-type-list">
@@ -752,17 +775,15 @@ watch(
                   :key="option.value"
                   class="service-type-row"
                   :class="{
-                    'service-type-row-active': form.serviceTypes.includes(option.value),
-                    'service-type-row-disabled': option.comingSoon,
+                    'service-type-row-active': form.serviceTypes[option.value],
                   }"
                 >
                   <label class="service-type-option">
                     <input
-                      v-model="form.serviceTypes"
+                      v-model="form.serviceTypes[option.value]"
                       type="checkbox"
                       class="service-type-checkbox"
-                      :value="option.value"
-                      :disabled="saving || option.comingSoon"
+                      :disabled="saving || !option.selectable"
                     />
                     <span class="service-type-label">{{ option.label }}</span>
                     <span
@@ -809,23 +830,17 @@ watch(
                   </div>
                 </div>
               </div>
+              <p v-if="fieldErrors['service_types.rrhh']" class="field-error">
+                {{ fieldErrors['service_types.rrhh'] }}
+              </p>
+              <p v-if="fieldErrors['service_types.sgi']" class="field-error">
+                {{ fieldErrors['service_types.sgi'] }}
+              </p>
               <p v-if="fieldErrors.service_types" class="field-error">{{ fieldErrors.service_types }}</p>
             </div>
 
             <p v-if="databaseSuccessMessage" class="alert-success">{{ databaseSuccessMessage }}</p>
             <p v-if="databaseError" class="alert-error">{{ databaseError }}</p>
-          </section>
-
-          <p v-if="error" class="alert-error">{{ error }}</p>
-        </div>
-
-        <div v-show="activeTab === 'users'" class="modal-body space-y-5" role="tabpanel">
-          <section class="config-section">
-            <h3 class="config-section-title">Usuarios del cliente</h3>
-            <p class="field-hint section-hint">
-              Asocie usuarios activos de la plataforma central a este cliente. Los cambios se aplican de inmediato.
-            </p>
-            <CentralTenantUsersPanel :tenant="tenant" :active="open && activeTab === 'users'" />
           </section>
 
           <p v-if="error" class="alert-error">{{ error }}</p>
@@ -1343,6 +1358,11 @@ watch(
 .service-type-status-pending {
   background: #fef3c7;
   color: #92400e;
+}
+
+.service-type-status-selected {
+  background: #dbeafe;
+  color: #1d4ed8;
 }
 
 .service-type-status-waiting {

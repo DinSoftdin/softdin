@@ -9,6 +9,7 @@ export interface TenantAssignedUser {
   name: string
   email: string
   role: string
+  has_avatar?: boolean
   is_superuser?: boolean
   is_platform_admin?: boolean
 }
@@ -17,6 +18,7 @@ export interface TenantAvailableUser {
   id: number
   name: string
   email: string
+  has_avatar?: boolean
   is_superuser?: boolean
   is_platform_admin?: boolean
 }
@@ -79,8 +81,13 @@ export interface CreateCentralTenantResponse {
 
 export type TenantServiceType = 'rrhh' | 'sgi'
 
+export interface TenantServiceTypesMap {
+  rrhh: boolean
+  sgi: boolean
+}
+
 export interface CentralTenantData {
-  service_types?: TenantServiceType[]
+  service_types?: TenantServiceTypesMap | TenantServiceType[]
 }
 
 export interface UpdateCentralTenantPayload {
@@ -88,7 +95,7 @@ export interface UpdateCentralTenantPayload {
   slug: string
   status: string
   domain: string
-  service_types?: TenantServiceType[]
+  service_types?: TenantServiceTypesMap
 }
 
 export interface UpdateCentralTenantResponse {
@@ -193,11 +200,14 @@ export interface CentralTenantsResponse {
 export interface TenantServiceTypeOption {
   value: TenantServiceType
   label: string
+  /** Permite marcar el módulo en el formulario (selección múltiple). */
+  selectable: boolean
+  /** Permite crear/eliminar la BD operacional del módulo. */
   provisionable: boolean
   comingSoon?: boolean
 }
 
 export const TENANT_SERVICE_TYPE_OPTIONS: readonly TenantServiceTypeOption[] = [
-  { value: 'rrhh', label: 'RRHH', provisionable: true },
-  { value: 'sgi', label: 'SGI', provisionable: false, comingSoon: true },
+  { value: 'rrhh', label: 'RRHH', selectable: true, provisionable: true },
+  { value: 'sgi', label: 'SGI', selectable: true, provisionable: false, comingSoon: true },
 ]

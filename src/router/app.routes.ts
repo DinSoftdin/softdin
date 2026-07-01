@@ -11,8 +11,14 @@ export const appRoutes: RouteRecordRaw = {
       component: () => import('@/views/app/HomeView.vue'),
     },
     {
+      path: 'registros-maestros',
+      name: 'registros-maestros',
+      component: () => import('@/views/RegistrosMaestros/RegistrosMaestrosView.vue'),
+      meta: { title: 'Registros Maestros', module: 'Registros Maestros' },
+    },
+    {
       path: 'datos-maestros',
-      redirect: { name: 'maestros-geografia' },
+      redirect: { name: 'registros-maestros' },
     },
     {
       path: 'perfil',
@@ -33,22 +39,38 @@ export const appRoutes: RouteRecordRaw = {
       meta: { title: 'Auditoría', requiresTenantAudit: true },
     },
     {
+      path: 'registros-maestros/geografia',
+      name: 'registros-maestros-geografia',
+      component: () => import('@/views/RegistrosMaestros/GeografiaAdminView.vue'),
+      meta: { title: 'Geografía', module: 'Registros Maestros' },
+    },
+    {
       path: 'maestros/geografia',
-      name: 'maestros-geografia',
-      component: () => import('@/views/app/GeografiaAdminView.vue'),
-      meta: { title: 'Geografía', module: 'Maestros' },
+      redirect: { name: 'registros-maestros-geografia' },
+    },
+    {
+      path: 'registros-maestros/cargos',
+      name: 'registros-maestros-cargos',
+      component: () => import('@/views/app/PlaceholderView.vue'),
+      meta: { title: 'Cargos', module: 'Registros Maestros' },
     },
     {
       path: 'maestros/cargos',
-      name: 'maestros-cargos',
+      redirect: { name: 'registros-maestros-cargos' },
+    },
+    {
+      path: 'registros-maestros/terceros',
+      name: 'registros-maestros-terceros',
       component: () => import('@/views/app/PlaceholderView.vue'),
-      meta: { title: 'Cargos', module: 'Maestros' },
+      meta: { title: 'Terceros', module: 'Registros Maestros' },
     },
     {
       path: 'maestros/terceros',
-      name: 'maestros-terceros',
-      component: () => import('@/views/app/PlaceholderView.vue'),
-      meta: { title: 'Terceros', module: 'Maestros' },
+      redirect: { name: 'registros-maestros-terceros' },
+    },
+    {
+      path: 'maestros',
+      redirect: { name: 'registros-maestros' },
     },
     {
       path: 'nomina/empleados',
